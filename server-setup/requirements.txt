@@ -1,0 +1,13 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.6
+aiortc>=1.9.0
+yt-dlp>=2024.10.22
+PySide6>=6.8.0
+PySide6-Addons>=6.8.0
+PySide6-Essentials>=6.8.0
+qasync>=0.28.0
+pydantic>=2.9.2
+python-dotenv>=1.0.1
+requests>=2.32.3
+av>=12.3.0
+

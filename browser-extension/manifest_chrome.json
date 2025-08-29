@@ -1,0 +1,29 @@
+{
+    "name": "Librezam",
+    "description": "Opensource song recognition extension using shazam API",
+    "version": "2.3",
+    "manifest_version": 3,
+    "icons": {
+        "128": "icon.png"
+    },
+    "action": {
+        "default_title": "Librezam",
+        "default_popup": "/popup/guess.html"
+    },
+    "content_scripts": [
+        {
+          "js": ["content.js"],
+          "matches": ["<all_urls>"],
+          "all_frames": true
+        }
+    ],
+    "permissions": ["tabs", "webNavigation", "storage"],
+    "host_permissions": ["<all_urls>"],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    },
+    "web_accessible_resources": [{
+        "resources": ["/utils/fixHeadlessAudio.js"],
+        "matches": ["<all_urls>"]
+    }]
+}
