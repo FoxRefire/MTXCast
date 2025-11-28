@@ -147,6 +147,10 @@ class PlayerWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("MTXCast Player")
         self._config = config
 
+        # Set minimum window size (width x height)
+        # 640x480 is a reasonable minimum for video playback
+        self.setMinimumSize(640, 480)
+
         self._stack = QtWidgets.QStackedWidget()
         self._video_widget = QVideoWidget()
         self._canvas = VideoCanvas()
