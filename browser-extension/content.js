@@ -43,6 +43,7 @@ function addCastButtonToVideo(videoElement) {
         
         // Apply casting.css by adding a class to the video element
         videoElement.classList.add('mtxcast-casting');
+        videoElement.muted = true;
         
         console.log('[MTXCast] Cast button clicked');
         console.log('[MTXCast] Video element:', videoElement);
