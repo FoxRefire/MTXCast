@@ -1,3 +1,170 @@
+// Synchronization state management
+const syncState = {
+    active: false,
+    videoElement: null,
+    syncInterval: null,
+    lastSeekTime: 0,
+    isAdjusting: false,
+    threshold: 1.0, // seconds - threshold for sync adjustment
+    pollInterval: 1000, // milliseconds - how often to check server status
+    serverUrl: 'http://127.0.0.1:8080'
+};
+
+// Get server status
+async function getServerStatus() {
+    try {
+        const response = await fetch(`${syncState.serverUrl}/status`);
+        if (!response.ok) {
+            return null;
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('[MTXCast] Failed to get server status:', error);
+        return null;
+    }
+}
+
+// Seek server to position
+async function seekServer(position) {
+    try {
+        await fetch(`${syncState.serverUrl}/control/seek`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ position: position })
+        });
+        return true;
+    } catch (error) {
+        console.error('[MTXCast] Failed to seek server:', error);
+        return false;
+    }
+}
+
+// Synchronize video with server
+async function syncWithServer() {
+    if (!syncState.active || !syncState.videoElement) {
+        return;
+    }
+
+    const video = syncState.videoElement;
+    const status = await getServerStatus();
+
+    if (!status || status.stream_type !== 'METADATA') {
+        return;
+    }
+
+    // Skip if position/duration is not available
+    if (status.position === undefined || status.duration === undefined) {
+        return;
+    }
+
+    const serverPosition = status.position;
+    const videoPosition = video.currentTime;
+    const diff = Math.abs(serverPosition - videoPosition);
+
+    // If difference exceeds threshold and we're not currently adjusting, sync the video
+    if (diff > syncState.threshold && !syncState.isAdjusting) {
+        console.log(`[MTXCast] Sync: Server=${serverPosition.toFixed(2)}s, Video=${videoPosition.toFixed(2)}s, Diff=${diff.toFixed(2)}s`);
+        
+        syncState.isAdjusting = true;
+        video.currentTime = serverPosition;
+        
+        // Reset adjusting flag after a short delay
+        setTimeout(() => {
+            syncState.isAdjusting = false;
+        }, 500);
+    }
+}
+
+// Start synchronization
+function startSync(videoElement) {
+    if (syncState.active) {
+        stopSync();
+    }
+
+    syncState.active = true;
+    syncState.videoElement = videoElement;
+    syncState.lastSeekTime = Date.now();
+
+    // Poll server status periodically
+    syncState.syncInterval = setInterval(syncWithServer, syncState.pollInterval);
+
+    // Track last known position for jump detection
+    syncState.lastVideoTime = videoElement.currentTime;
+
+    // Listen for user-initiated seeks
+    const handleSeek = () => {
+        // Only sync if this is a user-initiated seek (not our own adjustment)
+        if (!syncState.isAdjusting && syncState.active) {
+            const currentTime = videoElement.currentTime;
+            console.log(`[MTXCast] User seek detected: ${currentTime.toFixed(2)}s`);
+            seekServer(currentTime);
+        }
+    };
+
+    // Listen for seeking events - seeked fires when seek completes
+    const seekedHandler = () => {
+        if (!syncState.isAdjusting) {
+            handleSeek();
+        }
+    };
+
+    // Listen for timeupdate to detect large jumps (fallback for cases where seeked doesn't fire)
+    const timeupdateHandler = () => {
+        if (syncState.isAdjusting) {
+            return;
+        }
+
+        const currentTime = videoElement.currentTime;
+        const lastTime = syncState.lastVideoTime;
+        const jump = Math.abs(currentTime - lastTime);
+
+        // Detect large jumps (user seeking)
+        // Normal playback advances gradually, so jumps > 0.5s are likely user seeks
+        if (jump > 0.5) {
+            handleSeek();
+        }
+
+        syncState.lastVideoTime = currentTime;
+    };
+
+    videoElement.addEventListener('seeked', seekedHandler);
+    videoElement.addEventListener('timeupdate', timeupdateHandler);
+
+    // Store event handlers for cleanup
+    videoElement._mtxcastSeekedHandler = seekedHandler;
+    videoElement._mtxcastTimeupdateHandler = timeupdateHandler;
+
+    console.log('[MTXCast] Synchronization started');
+}
+
+// Stop synchronization
+function stopSync() {
+    if (syncState.syncInterval) {
+        clearInterval(syncState.syncInterval);
+        syncState.syncInterval = null;
+    }
+
+    if (syncState.videoElement) {
+        if (syncState.videoElement._mtxcastSeekedHandler) {
+            syncState.videoElement.removeEventListener('seeked', syncState.videoElement._mtxcastSeekedHandler);
+            delete syncState.videoElement._mtxcastSeekedHandler;
+        }
+        if (syncState.videoElement._mtxcastTimeupdateHandler) {
+            syncState.videoElement.removeEventListener('timeupdate', syncState.videoElement._mtxcastTimeupdateHandler);
+            delete syncState.videoElement._mtxcastTimeupdateHandler;
+        }
+    }
+
+    syncState.active = false;
+    syncState.videoElement = null;
+    syncState.isAdjusting = false;
+    syncState.lastVideoTime = null;
+
+    console.log('[MTXCast] Synchronization stopped');
+}
+
 // Add cast button to video elements
 function addCastButtonToVideo(videoElement) {
     // Skip if button already exists
@@ -54,12 +221,16 @@ function addCastButtonToVideo(videoElement) {
         console.log('[MTXCast] Casting CSS applied');
 
         let currentTime = videoElement.currentTime;
-        let url = location.href
+        let url = location.href;
+        
         chrome.runtime.sendMessage({
             type: 'cast',
             currentTime: currentTime,
             url: url
         });
+
+        // Start synchronization
+        startSync(videoElement);
     });
 
     // Make sure parent element has relative positioning
@@ -106,6 +277,31 @@ const observer = new MutationObserver((mutations) => {
 
 // Start observing
 observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
+
+// Stop synchronization when page is unloaded or video is removed
+window.addEventListener('beforeunload', () => {
+    stopSync();
+});
+
+// Watch for video element removal
+const videoObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        mutation.removedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                // Check if the removed node is the video we're syncing
+                if (node === syncState.videoElement || node.contains?.(syncState.videoElement)) {
+                    console.log('[MTXCast] Video element removed, stopping sync');
+                    stopSync();
+                }
+            }
+        });
+    });
+});
+
+videoObserver.observe(document.body, {
     childList: true,
     subtree: true
 });
