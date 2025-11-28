@@ -42,29 +42,94 @@ class VideoCanvas(QtWidgets.QLabel):
 class ControlBar(QtWidgets.QWidget):
     play_clicked = QtCore.Signal()
     pause_clicked = QtCore.Signal()
+    stop_clicked = QtCore.Signal()
+    seek_requested = QtCore.Signal(float)
 
     def __init__(self) -> None:
         super().__init__()
-        layout = QtWidgets.QHBoxLayout(self)
+        self._slider_max = 1000
+        self._user_sliding = False
+        self._last_duration: float | None = None
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self.position_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
+        self.position_slider.setRange(0, self._slider_max)
+        self.position_slider.setEnabled(False)
+        self._time_label = QtWidgets.QLabel("00:00 / --:--")
+
+        self.position_slider.sliderPressed.connect(self._on_slider_pressed)
+        self.position_slider.sliderReleased.connect(self._on_slider_released)
+
+        layout.addWidget(self.position_slider)
+        layout.addWidget(self._time_label)
+
+        button_row = QtWidgets.QHBoxLayout()
         self.play_button = QtWidgets.QPushButton("Play")
         self.pause_button = QtWidgets.QPushButton("Pause")
+        self.stop_button = QtWidgets.QPushButton("Stop")
         self.volume_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
 
-        layout.addWidget(self.play_button)
-        layout.addWidget(self.pause_button)
-        layout.addWidget(QtWidgets.QLabel("Volume"))
-        layout.addWidget(self.volume_slider)
+        button_row.addWidget(self.play_button)
+        button_row.addWidget(self.pause_button)
+        button_row.addWidget(self.stop_button)
+        button_row.addWidget(QtWidgets.QLabel("Volume"))
+        button_row.addWidget(self.volume_slider)
+
+        layout.addLayout(button_row)
 
         self.play_button.clicked.connect(self.play_clicked.emit)
         self.pause_button.clicked.connect(self.pause_clicked.emit)
+        self.stop_button.clicked.connect(self.stop_clicked.emit)
+
+    def set_progress(self, position: float | None, duration: float | None, is_seekable: bool) -> None:
+        can_seek = bool(is_seekable and duration and duration > 0)
+        self.position_slider.setEnabled(can_seek)
+        self._last_duration = duration
+
+        if not self._user_sliding:
+            if position is not None and duration and duration > 0:
+                ratio = max(0.0, min(position / duration, 1.0))
+                value = int(ratio * self._slider_max)
+            else:
+                value = 0
+            self.position_slider.blockSignals(True)
+            self.position_slider.setValue(value)
+            self.position_slider.blockSignals(False)
+
+        self._time_label.setText(f"{self._fmt(position)} / {self._fmt(duration)}")
+
+    def _fmt(self, seconds: float | None) -> str:
+        if seconds is None or seconds < 0:
+            return "--:--"
+        total = int(seconds)
+        m, s = divmod(total, 60)
+        h, m = divmod(m, 60)
+        if h:
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        return f"{m:02d}:{s:02d}"
+
+    def _on_slider_pressed(self) -> None:
+        self._user_sliding = True
+
+    def _on_slider_released(self) -> None:
+        if not self._user_sliding:
+            return
+        self._user_sliding = False
+        if self._last_duration and self._last_duration > 0:
+            ratio = self.position_slider.value() / self._slider_max
+            target = ratio * self._last_duration
+            self.seek_requested.emit(target)
 
 
 class PlayerWindow(QtWidgets.QMainWindow):
     play_requested = QtCore.Signal()
     pause_requested = QtCore.Signal()
+    stop_requested = QtCore.Signal()
     volume_changed = QtCore.Signal(float)
+    seek_requested = QtCore.Signal(float)
 
     def __init__(self, config: ServerConfig) -> None:
         super().__init__()
@@ -80,6 +145,8 @@ class PlayerWindow(QtWidgets.QMainWindow):
         self._controls = ControlBar()
         self._controls.play_clicked.connect(self._on_play)
         self._controls.pause_clicked.connect(self._on_pause)
+        self._controls.stop_clicked.connect(self._on_stop)
+        self._controls.seek_requested.connect(self._on_seek)
         self._controls.volume_slider.valueChanged.connect(self._on_volume)
         self._controls.setVisible(False)
 
@@ -130,8 +197,14 @@ class PlayerWindow(QtWidgets.QMainWindow):
     def _on_pause(self) -> None:
         self.pause_requested.emit()
 
+    def _on_stop(self) -> None:
+        self.stop_requested.emit()
+
     def _on_volume(self, value: int) -> None:
         self.volume_changed.emit(value / 100)
+
+    def _on_seek(self, position: float) -> None:
+        self.seek_requested.emit(position)
 
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
         if event.type() == QtCore.QEvent.Type.MouseMove:
@@ -141,6 +214,13 @@ class PlayerWindow(QtWidgets.QMainWindow):
     def _show_controls_temporarily(self) -> None:
         self._controls.setVisible(True)
         self._controls_timer.start(self._controls_timeout_ms)
+
+    def update_progress(self, position: float | None, duration: float | None, is_seekable: bool) -> None:
+        self._controls.set_progress(position, duration, is_seekable)
+
+    def on_playback_stopped(self) -> None:
+        self._controls.set_progress(None, None, False)
+        self.hide()
 
 
 class TrayIcon(QtWidgets.QSystemTrayIcon):
@@ -316,6 +396,7 @@ class PlayerBackend(QtCore.QObject):
         self._retry_attempts = 0
         self._max_retries = 3
         self._pending_seek: float | None = None
+        self._current_duration: float | None = None
 
         self._retry_timer = QtCore.QTimer(self)
         self._retry_timer.setSingleShot(True)
@@ -324,6 +405,8 @@ class PlayerBackend(QtCore.QObject):
         window.volume_changed.connect(self._on_volume_changed)
         self._player.errorOccurred.connect(self._handle_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
+        self._player.positionChanged.connect(self._on_position_changed)
+        self._player.durationChanged.connect(self._on_duration_changed)
 
     async def play_url(self, url: str, start_time: float = 0.0, title: str | None = None) -> None:
         await self._webrtc_session.stop()
@@ -340,6 +423,7 @@ class PlayerBackend(QtCore.QObject):
         self._retry_attempts = 0
         self._retry_timer.stop()
         self._window.show_player(use_webrtc=False)
+        self._window.update_progress(start_time or 0.0, None, True)
 
     async def attach_webrtc_track(self, track: MediaStreamTrack, pc: RTCPeerConnection) -> None:
         import logging
@@ -349,7 +433,10 @@ class PlayerBackend(QtCore.QObject):
         await self._webrtc_session.attach(track, pc)
         logger.info("PlayerBackend: Switching to WebRTC canvas")
         self._mode = "whip"
+        self._current_source_url = None
+        self._pending_seek = None
         self._window.show_player(use_webrtc=True)
+        self._window.update_progress(None, None, False)
 
     async def pause(self) -> None:
         self._player.pause()
@@ -368,6 +455,14 @@ class PlayerBackend(QtCore.QObject):
     def _on_volume_changed(self, value: float) -> None:
         self._volume = value
         self._audio.setVolume(self._volume)
+
+    async def stop(self) -> None:
+        self._player.stop()
+        await self._webrtc_session.stop()
+        self._mode = "idle"
+        self._current_source_url = None
+        self._pending_seek = None
+        self._window.on_playback_stopped()
 
     def _handle_player_error(self, error, error_string: str) -> None:
         import logging
@@ -423,6 +518,19 @@ class PlayerBackend(QtCore.QObject):
             position_ms = int(self._pending_seek * 1000)
             self._player.setPosition(position_ms)
             self._pending_seek = None
+
+    def _on_position_changed(self, position_ms: int) -> None:
+        if self._mode == "metadata":
+            position = position_ms / 1000 if position_ms >= 0 else 0.0
+            self._window.update_progress(position, self._current_duration, True)
+        else:
+            self._window.update_progress(None, None, False)
+
+    def _on_duration_changed(self, duration_ms: int) -> None:
+        self._current_duration = duration_ms / 1000 if duration_ms > 0 else None
+        if self._mode == "metadata":
+            position = self._player.position() / 1000 if self._player.position() >= 0 else 0.0
+            self._window.update_progress(position, self._current_duration, True)
 
     async def get_metrics(self) -> PlaybackMetrics:
         if self._mode == "metadata":

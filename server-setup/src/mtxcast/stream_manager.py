@@ -36,6 +36,8 @@ class PlayerTransport(Protocol):
 
     async def get_metrics(self) -> PlaybackMetrics: ...
 
+    async def stop(self) -> None: ...
+
 
 class StreamType(Enum):
     IDLE = auto()
@@ -125,5 +127,20 @@ class StreamManager:
             self._status.position = metrics.position
             self._status.duration = metrics.duration
             self._status.is_seekable = metrics.is_seekable
+            return self._status
+
+    async def stop(self) -> PlayerStatus:
+        async with self._lock:
+            await self._player.stop()
+            volume = self._status.volume
+            self._status = PlayerStatus(
+                stream_type=StreamType.IDLE,
+                title=None,
+                is_playing=False,
+                volume=volume,
+                position=None,
+                duration=None,
+                is_seekable=False,
+            )
             return self._status
 

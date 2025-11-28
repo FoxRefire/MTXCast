@@ -7,6 +7,7 @@ MTXCastはOBSなどの配信用途から直接WHIP(WebRTC-HTTP ingestion protoco
 - yt-dlpを用いたオンデマンドのストリーム解決と即時再生
 - 再生/一時停止/シーク/音量調整などのリモート制御API
 - PySide6 + QtMultimediaによる内蔵プレイヤー、設定ダイアログ、タスクトレイ常駐
+- プレイヤー下部のコントローラーからもマウス操作で再生/一時停止/停止/シーク/音量調整が可能
 - qasyncを利用したQt Event Loopとasyncioの統合
 
 ## 依存関係

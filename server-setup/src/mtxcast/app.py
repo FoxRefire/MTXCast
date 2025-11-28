@@ -53,6 +53,8 @@ async def _async_main(handles: UIHandles, config: ServerConfig) -> None:
 
     handles.window.play_requested.connect(lambda: asyncio.create_task(manager.resume()))
     handles.window.pause_requested.connect(lambda: asyncio.create_task(manager.pause()))
+    handles.window.stop_requested.connect(lambda: asyncio.create_task(manager.stop()))
+    handles.window.seek_requested.connect(lambda position: asyncio.create_task(manager.seek(position)))
     handles.window.volume_changed.connect(lambda value: asyncio.create_task(manager.set_volume(value)))
 
     server_task = asyncio.create_task(_start_uvicorn(api, config))
