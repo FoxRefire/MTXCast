@@ -414,7 +414,6 @@ class PlayerBackend(QtCore.QObject):
         self._player.play()
         if start_time:
             self._pending_seek = start_time
-            self._apply_pending_seek()
         else:
             self._pending_seek = None
         self._mode = "metadata"
