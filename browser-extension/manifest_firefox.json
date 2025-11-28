@@ -7,22 +7,21 @@
         "128": "icon.png"
     },
     "action": {
-        "default_title": "Librezam",
-        "default_popup": "/popup/guess.html"
+        "default_title": "MTXCast"
     },
     "content_scripts": [
         {
           "js": ["content.js"],
+          "css": ["casting.css"],
           "matches": ["<all_urls>"],
           "all_frames": true
         }
     ],
-    "permissions": ["tabs", "webNavigation", "storage"],
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "permissions": ["storage"],
     "host_permissions": ["<all_urls>"],
-    "web_accessible_resources": [{
-        "resources": ["/utils/fixHeadlessAudio.js"],
-        "matches": ["<all_urls>"]
-    }],
     "browser_specific_settings": {
         "gecko": {
             "id": "MTXCast@FoxRefire"
