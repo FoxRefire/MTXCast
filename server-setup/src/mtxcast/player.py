@@ -12,7 +12,7 @@ from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 
 from .config import ServerConfig, save_config
-from .stream_manager import PlayerTransport
+from .stream_manager import PlaybackMetrics, PlayerTransport
 
 
 class VideoCanvas(QtWidgets.QLabel):
@@ -310,6 +310,7 @@ class PlayerBackend(QtCore.QObject):
         self._volume = 0.8
         self._audio.setVolume(self._volume)
         self._window.set_volume_slider(self._volume)
+        self._mode: str = "idle"  # "metadata" or "whip"
 
         window.volume_changed.connect(self._on_volume_changed)
 
@@ -319,6 +320,7 @@ class PlayerBackend(QtCore.QObject):
         self._player.play()
         if start_time:
             self._player.setPosition(int(start_time * 1000))
+        self._mode = "metadata"
         self._window.show_player(use_webrtc=False)
 
     async def attach_webrtc_track(self, track: MediaStreamTrack, pc: RTCPeerConnection) -> None:
@@ -328,6 +330,7 @@ class PlayerBackend(QtCore.QObject):
         self._player.stop()
         await self._webrtc_session.attach(track, pc)
         logger.info("PlayerBackend: Switching to WebRTC canvas")
+        self._mode = "whip"
         self._window.show_player(use_webrtc=True)
 
     async def pause(self) -> None:
@@ -347,6 +350,17 @@ class PlayerBackend(QtCore.QObject):
     def _on_volume_changed(self, value: float) -> None:
         self._volume = value
         self._audio.setVolume(self._volume)
+
+    async def get_metrics(self) -> PlaybackMetrics:
+        if self._mode == "metadata":
+            position_ms = self._player.position()
+            duration_ms = self._player.duration()
+            return PlaybackMetrics(
+                position=position_ms / 1000 if position_ms >= 0 else 0.0,
+                duration=duration_ms / 1000 if duration_ms > 0 else None,
+                is_seekable=True,
+            )
+        return PlaybackMetrics(position=None, duration=None, is_seekable=False)
 
 
 @dataclass

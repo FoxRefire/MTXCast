@@ -74,12 +74,15 @@ def build_api(manager: StreamManager, whip: WhipEndpoint, config: ServerConfig) 
 
     @app.get("/status", dependencies=[token_dep])
     async def get_status() -> dict:
-        state = manager.status
+        state = await manager.current_status()
         return {
             "stream_type": state.stream_type.name,
             "title": state.title,
             "is_playing": state.is_playing,
             "volume": state.volume,
+            "position": state.position,
+            "duration": state.duration,
+            "is_seekable": state.is_seekable,
         }
 
     @app.post(f"{config.control_endpoint}/play", dependencies=[token_dep])

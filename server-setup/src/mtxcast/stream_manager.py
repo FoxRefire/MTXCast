@@ -14,6 +14,13 @@ from .metadata import MetadataPayload, MetadataResolver
 LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
+class PlaybackMetrics:
+    position: Optional[float] = None  # seconds
+    duration: Optional[float] = None  # seconds
+    is_seekable: bool = False
+
+
 class PlayerTransport(Protocol):
     async def play_url(self, url: str, start_time: float = 0.0, title: str | None = None) -> None: ...
 
@@ -26,6 +33,8 @@ class PlayerTransport(Protocol):
     async def seek(self, position: float) -> None: ...
 
     async def set_volume(self, volume: float) -> None: ...
+
+    async def get_metrics(self) -> PlaybackMetrics: ...
 
 
 class StreamType(Enum):
@@ -40,6 +49,9 @@ class PlayerStatus:
     title: Optional[str] = None
     is_playing: bool = False
     volume: float = 1.0
+    position: Optional[float] = None
+    duration: Optional[float] = None
+    is_seekable: bool = False
 
 
 class StreamManager:
@@ -62,6 +74,9 @@ class StreamManager:
                 title=resolved.title,
                 is_playing=True,
                 volume=self._status.volume,
+                position=resolved.start_time,
+                duration=None,
+                is_seekable=True,
             )
             return self._status
 
@@ -75,6 +90,9 @@ class StreamManager:
                 title=title or "Live WHIP Stream",
                 is_playing=True,
                 volume=self._status.volume,
+                position=None,
+                duration=None,
+                is_seekable=False,
             )
             return self._status
 
@@ -99,5 +117,13 @@ class StreamManager:
         async with self._lock:
             await self._player.set_volume(volume)
             self._status.volume = volume
+            return self._status
+
+    async def current_status(self) -> PlayerStatus:
+        async with self._lock:
+            metrics = await self._player.get_metrics()
+            self._status.position = metrics.position
+            self._status.duration = metrics.duration
+            self._status.is_seekable = metrics.is_seekable
             return self._status
 

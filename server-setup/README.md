@@ -25,6 +25,7 @@ pip install -r requirements.txt
 - `POST /whip` : WHIPクライアント(OBS等)からのSDP Offerを受信し、ストリームを内部プレイヤーに接続
 - `POST /metadata` : `{ "source_url": "https://...", "start_time": 30 }` のようなメタデータで再生を開始
 - `POST /control/play` / `pause` / `seek` / `volume`
+- `GET /status` : 現在のストリーム種別や音量に加え、メタデータ再生時は `position` / `duration` / `is_seekable` を返すのでクライアント側で再生位置同期に利用可能
 
 詳細は `src/mtxcast/api_server.py` を参照してください。
 
@@ -56,6 +57,18 @@ curl -X POST http://127.0.0.1:8080/control/seek \
 curl -X POST http://127.0.0.1:8080/control/volume \
   -H "Content-Type: application/json" \
   -d '{"volume": 0.5}'
+
+# 現在のステータス (position/duration はメタデータ再生時のみ有効)
+curl http://127.0.0.1:8080/status
+{
+  "stream_type": "METADATA",
+  "title": "Sample Stream",
+  "is_playing": true,
+  "volume": 0.8,
+  "position": 123.4,
+  "duration": 3600.0,
+  "is_seekable": true
+}
 ```
 
 #### WHIPエンドポイント
