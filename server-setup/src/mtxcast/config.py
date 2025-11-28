@@ -58,3 +58,5 @@ def save_config(config: ServerConfig, path: Path | None = None) -> None:
     with cfg_path.open("w", encoding="utf-8") as fh:
         json.dump(config.to_dict(), fh, indent=2)
 
+
+

@@ -397,6 +397,11 @@ class PlayerBackend(QtCore.QObject):
         self._max_retries = 3
         self._pending_seek: float | None = None
         self._current_duration: float | None = None
+        self._buffering_event: asyncio.Event | None = None
+        self._buffering_timeout: float = 10.0  # seconds
+        self._is_seeking: bool = False
+        self._last_valid_position: float | None = None
+        self._seek_applied: bool = False
 
         self._retry_timer = QtCore.QTimer(self)
         self._retry_timer.setSingleShot(True)
@@ -409,13 +414,24 @@ class PlayerBackend(QtCore.QObject):
         self._player.durationChanged.connect(self._on_duration_changed)
 
     async def play_url(self, url: str, start_time: float = 0.0, title: str | None = None) -> None:
+        import logging
+
+        logger = logging.getLogger(__name__)
         await self._webrtc_session.stop()
+        
+        # Reset buffering event and flags
+        self._buffering_event = asyncio.Event()
+        self._is_seeking = False
+        self._seek_applied = False
+        self._last_valid_position = None
+        
         self._player.setSource(QtCore.QUrl(url))
-        self._player.play()
         if start_time:
             self._pending_seek = start_time
+            self._last_valid_position = start_time
         else:
             self._pending_seek = None
+            self._last_valid_position = 0.0
         self._mode = "metadata"
         self._current_source_url = url
         self._current_title = title
@@ -423,6 +439,18 @@ class PlayerBackend(QtCore.QObject):
         self._retry_timer.stop()
         self._window.show_player(use_webrtc=False)
         self._window.update_progress(start_time or 0.0, None, True)
+        
+        # Wait for media to be loaded/buffered before starting playback
+        try:
+            logger.info("Waiting for media buffering...")
+            await asyncio.wait_for(self._buffering_event.wait(), timeout=self._buffering_timeout)
+            logger.info("Media buffering completed, starting playback")
+        except asyncio.TimeoutError:
+            logger.warning("Media buffering timeout, starting playback anyway")
+        
+        # Start playback after buffering
+        self._player.play()
+        # Seek will be applied in _on_media_status_changed when media is ready
 
     async def attach_webrtc_track(self, track: MediaStreamTrack, pc: RTCPeerConnection) -> None:
         import logging
@@ -444,7 +472,11 @@ class PlayerBackend(QtCore.QObject):
         self._player.play()
 
     async def seek(self, position: float) -> None:
+        self._is_seeking = True
+        self._last_valid_position = position
         self._player.setPosition(int(position * 1000))
+        # Reset seeking flag after a short delay
+        QtCore.QTimer.singleShot(500, lambda: setattr(self, "_is_seeking", False))
 
     async def set_volume(self, volume: float) -> None:
         self._volume = max(0.0, min(volume, 1.0))
@@ -461,6 +493,9 @@ class PlayerBackend(QtCore.QObject):
         self._mode = "idle"
         self._current_source_url = None
         self._pending_seek = None
+        self._is_seeking = False
+        self._seek_applied = False
+        self._last_valid_position = None
         self._window.on_playback_stopped()
 
     def _handle_player_error(self, error, error_string: str) -> None:
@@ -470,6 +505,9 @@ class PlayerBackend(QtCore.QObject):
         if error == QMediaPlayer.Error.NoError:  # type: ignore[attr-defined]
             return
         logger.error("QMediaPlayer error (%s): %s", error, error_string)
+        # Signal buffering event to prevent indefinite waiting
+        if self._buffering_event and not self._buffering_event.is_set():
+            self._buffering_event.set()
         if self._mode == "metadata" and self._current_source_url:
             if self._retry_attempts < self._max_retries:
                 self._retry_attempts += 1
@@ -491,7 +529,12 @@ class PlayerBackend(QtCore.QObject):
         ):
             self._retry_attempts = 0
             self._retry_timer.stop()
-            self._apply_pending_seek()
+            # Signal that buffering is complete
+            if self._buffering_event and not self._buffering_event.is_set():
+                self._buffering_event.set()
+            # Apply seek only once when media is ready
+            if not self._seek_applied:
+                self._apply_pending_seek()
 
     def _retry_metadata_playback(self) -> None:
         if self._mode != "metadata" or not self._current_source_url:
@@ -514,13 +557,36 @@ class PlayerBackend(QtCore.QObject):
 
     def _apply_pending_seek(self) -> None:
         if self._mode == "metadata" and self._pending_seek is not None:
+            import logging
+            logger = logging.getLogger(__name__)
+            self._is_seeking = True
             position_ms = int(self._pending_seek * 1000)
+            target_position = self._pending_seek
+            logger.info("Applying seek to position: %.2f seconds", target_position)
             self._player.setPosition(position_ms)
             self._pending_seek = None
+            self._seek_applied = True
+            # Reset seeking flag after a short delay to allow position to stabilize
+            QtCore.QTimer.singleShot(500, lambda: setattr(self, "_is_seeking", False))
 
     def _on_position_changed(self, position_ms: int) -> None:
         if self._mode == "metadata":
             position = position_ms / 1000 if position_ms >= 0 else 0.0
+            
+            # Ignore position changes that jump back to 0 unexpectedly
+            # This can happen during media loading or buffering
+            if self._last_valid_position is not None and position < self._last_valid_position - 1.0:
+                # If position jumps back more than 1 second, it's likely an unwanted reset
+                if not self._is_seeking and self._seek_applied:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug("Ignoring position reset from %.2f to %.2f", self._last_valid_position, position)
+                    return
+            
+            # Update last valid position if it's reasonable
+            if position >= 0:
+                self._last_valid_position = position
+            
             self._window.update_progress(position, self._current_duration, True)
         else:
             self._window.update_progress(None, None, False)
@@ -529,6 +595,9 @@ class PlayerBackend(QtCore.QObject):
         self._current_duration = duration_ms / 1000 if duration_ms > 0 else None
         if self._mode == "metadata":
             position = self._player.position() / 1000 if self._player.position() >= 0 else 0.0
+            # Update last valid position if reasonable
+            if position >= 0 and (self._last_valid_position is None or abs(position - self._last_valid_position) < 5.0):
+                self._last_valid_position = position
             self._window.update_progress(position, self._current_duration, True)
 
     async def get_metrics(self) -> PlaybackMetrics:
@@ -558,4 +627,6 @@ def build_ui(config: ServerConfig) -> UIHandles:
     tray = TrayIcon(window)
     window.hide()  # Hide until playback starts
     return UIHandles(app=app, window=window, tray=tray, backend=backend)
+
+
 
