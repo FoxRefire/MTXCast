@@ -98,6 +98,33 @@ class StreamManager:
             )
             return self._status
 
+    async def handle_file(self, file_path: str, start_time: float = 0.0, title: str | None = None) -> PlayerStatus:
+        async with self._lock:
+            from pathlib import Path
+            path = Path(file_path)
+            if not path.exists():
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            # Use filename as title if not provided
+            if not title:
+                title = path.name
+            
+            # Convert file path to file:// URL for QMediaPlayer
+            file_url = path.as_uri()
+            
+            LOGGER.info(f"Playing file: {file_url} (start_time: {start_time})")
+            await self._player.play_url(file_url, start_time, title)
+            self._status = PlayerStatus(
+                stream_type=StreamType.METADATA,
+                title=title,
+                is_playing=True,
+                volume=self._status.volume,
+                position=start_time,
+                duration=None,
+                is_seekable=True,
+            )
+            return self._status
+
     async def pause(self) -> PlayerStatus:
         async with self._lock:
             await self._player.pause()

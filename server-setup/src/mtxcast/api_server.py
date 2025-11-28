@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import tempfile
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Request, Response, status
+from fastapi import Body, Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
@@ -115,6 +117,60 @@ def build_api(manager: StreamManager, whip: WhipEndpoint, config: ServerConfig) 
             "stream_type": state.stream_type.name,
             "is_playing": state.is_playing,
         }
+
+    @app.post("/upload", dependencies=[token_dep])
+    async def upload_file(
+        file: UploadFile = File(...),
+        start_time: Annotated[float, Form()] = 0.0,
+    ) -> dict:
+        """Upload and play a media file"""
+        # Validate file type
+        content_type = file.content_type or ""
+        if not any(content_type.startswith(prefix) for prefix in ["video/", "audio/"]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file type: {content_type}. Only video and audio files are supported."
+            )
+        
+        # Create temporary directory for uploaded files
+        temp_dir = Path.home() / ".mtxcast" / "uploads"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = Path(file.filename or "file").suffix
+        temp_file = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=file_extension,
+            dir=temp_dir
+        )
+        
+        try:
+            # Save uploaded file
+            content = await file.read()
+            temp_file.write(content)
+            temp_file.close()
+            
+            file_path = Path(temp_file.name)
+            LOGGER.info(f"File uploaded: {file_path} ({len(content)} bytes)")
+            
+            # Play the file
+            state = await manager.handle_file(str(file_path), start_time, file.filename)
+            
+            return {
+                "stream_type": state.stream_type.name,
+                "title": state.title,
+                "is_playing": state.is_playing,
+                "file_path": str(file_path),
+            }
+        except Exception as e:
+            # Clean up on error
+            if file_path.exists():
+                file_path.unlink()
+            LOGGER.error(f"Error processing uploaded file: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process file: {str(e)}"
+            )
 
     return app
 

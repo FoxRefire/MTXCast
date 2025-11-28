@@ -319,6 +319,100 @@ async function stopMirroring() {
     }
 }
 
+// File upload functionality
+let selectedFile = null;
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// File input handler
+document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        selectedFile = file;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('fileInfo').style.display = 'flex';
+        document.getElementById('uploadButton').disabled = false;
+    } else {
+        selectedFile = null;
+        document.getElementById('fileInfo').style.display = 'none';
+        document.getElementById('uploadButton').disabled = true;
+    }
+});
+
+// Upload button handler
+document.getElementById('uploadButton').addEventListener('click', async () => {
+    if (!selectedFile) {
+        return;
+    }
+
+    const uploadButton = document.getElementById('uploadButton');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
+    // Disable button and show progress
+    uploadButton.disabled = true;
+    uploadProgress.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressText.textContent = '0%';
+
+    try {
+        // Create FormData
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('start_time', '0.0');
+
+        // Upload file with progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressFill.style.width = percentComplete + '%';
+                progressText.textContent = Math.round(percentComplete) + '%';
+            }
+        });
+
+        xhr.addEventListener('load', async () => {
+            if (xhr.status === 200) {
+                progressFill.style.width = '100%';
+                progressText.textContent = '100%';
+                
+                // Wait a bit then hide progress and update status
+                setTimeout(() => {
+                    uploadProgress.style.display = 'none';
+                    uploadButton.disabled = false;
+                    updateStatus();
+                }, 500);
+            } else {
+                throw new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`);
+            }
+        });
+
+        xhr.addEventListener('error', () => {
+            throw new Error('Upload failed: Network error');
+        });
+
+        // Send request
+        xhr.open('POST', `${getServerUrl()}/upload`);
+        xhr.send(formData);
+
+    } catch (error) {
+        console.error('File upload error:', error);
+        alert('ファイルのアップロードに失敗しました: ' + error.message);
+        uploadProgress.style.display = 'none';
+        uploadButton.disabled = false;
+    }
+});
+
 // Initialize
 (async () => {
     await loadSettings();

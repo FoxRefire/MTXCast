@@ -67,6 +67,31 @@
                     </button>
                 </div>
             </div>
+
+            <div class="upload-section">
+                <h3>ファイルアップロード</h3>
+                <div class="file-upload-area" id="fileUploadArea">
+                    <input type="file" id="fileInput" accept="video/*,audio/*" style="display: none;">
+                    <label for="fileInput" class="file-upload-label">
+                        <span class="icon">📁</span>
+                        <span>ファイルを選択</span>
+                    </label>
+                    <div class="file-info" id="fileInfo" style="display: none;">
+                        <span id="fileName">-</span>
+                        <span id="fileSize">-</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="uploadButton" disabled>
+                    <span class="icon">⬆</span>
+                    <span>アップロードして再生</span>
+                </button>
+                <div class="upload-progress" id="uploadProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
+            </div>
         </div>
 
         <!-- Settings Tab -->
