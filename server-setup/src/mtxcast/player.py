@@ -81,6 +81,7 @@ class PlayerWindow(QtWidgets.QMainWindow):
         self._controls.play_clicked.connect(self._on_play)
         self._controls.pause_clicked.connect(self._on_pause)
         self._controls.volume_slider.valueChanged.connect(self._on_volume)
+        self._controls.setVisible(False)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self._stack)
@@ -88,7 +89,20 @@ class PlayerWindow(QtWidgets.QMainWindow):
 
         container = QtWidgets.QWidget()
         container.setLayout(layout)
+        container.setMouseTracking(True)
         self.setCentralWidget(container)
+        self.setMouseTracking(True)
+        self._stack.setMouseTracking(True)
+        self._video_widget.setMouseTracking(True)
+        self._canvas.setMouseTracking(True)
+
+        for widget in (self, container, self._stack, self._video_widget, self._canvas):
+            widget.installEventFilter(self)
+
+        self._controls_timer = QtCore.QTimer(self)
+        self._controls_timer.setSingleShot(True)
+        self._controls_timer.timeout.connect(self._controls.hide)
+        self._controls_timeout_ms = 2500
 
     def video_widget(self) -> QVideoWidget:
         return self._video_widget
@@ -118,6 +132,15 @@ class PlayerWindow(QtWidgets.QMainWindow):
 
     def _on_volume(self, value: int) -> None:
         self.volume_changed.emit(value / 100)
+
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
+        if event.type() == QtCore.QEvent.Type.MouseMove:
+            self._show_controls_temporarily()
+        return super().eventFilter(obj, event)
+
+    def _show_controls_temporarily(self) -> None:
+        self._controls.setVisible(True)
+        self._controls_timer.start(self._controls_timeout_ms)
 
 
 class TrayIcon(QtWidgets.QSystemTrayIcon):
