@@ -402,6 +402,7 @@ class PlayerBackend(QtCore.QObject):
         self._is_seeking: bool = False
         self._last_valid_position: float | None = None
         self._seek_applied: bool = False
+        self._is_stopping: bool = False
 
         self._retry_timer = QtCore.QTimer(self)
         self._retry_timer.setSingleShot(True)
@@ -424,6 +425,7 @@ class PlayerBackend(QtCore.QObject):
         self._is_seeking = False
         self._seek_applied = False
         self._last_valid_position = None
+        self._is_stopping = False
         
         self._player.setSource(QtCore.QUrl(url))
         if start_time:
@@ -496,6 +498,7 @@ class PlayerBackend(QtCore.QObject):
         self._is_seeking = False
         self._seek_applied = False
         self._last_valid_position = None
+        self._is_stopping = False
         self._window.on_playback_stopped()
 
     def _handle_player_error(self, error, error_string: str) -> None:
@@ -535,6 +538,15 @@ class PlayerBackend(QtCore.QObject):
             # Apply seek only once when media is ready
             if not self._seek_applied:
                 self._apply_pending_seek()
+        elif status == QMediaPlayer.MediaStatus.EndOfMedia:
+            # Auto-stop when playback reaches the end
+            if not self._is_stopping:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info("Playback reached end of media, stopping")
+                self._is_stopping = True
+                loop = asyncio.get_event_loop()
+                loop.create_task(self.stop())
 
     def _retry_metadata_playback(self) -> None:
         if self._mode != "metadata" or not self._current_source_url:
@@ -582,6 +594,17 @@ class PlayerBackend(QtCore.QObject):
                     logger = logging.getLogger(__name__)
                     logger.debug("Ignoring position reset from %.2f to %.2f", self._last_valid_position, position)
                     return
+            
+            # Check if playback reached the end
+            if not self._is_stopping and self._current_duration and position >= self._current_duration - 0.5:
+                # Position is within 0.5 seconds of duration, stop playback
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info("Playback reached end (position: %.2f, duration: %.2f), stopping", position, self._current_duration)
+                self._is_stopping = True
+                loop = asyncio.get_event_loop()
+                loop.create_task(self.stop())
+                return
             
             # Update last valid position if it's reasonable
             if position >= 0:

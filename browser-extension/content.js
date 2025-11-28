@@ -1,64 +1,112 @@
-// When a message is received on clicking an icon, the audio in the DOM element is retrieved and responds to the pop-up script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    let elements = findMediaElements()
-    let promises = []
-    let stream = createStream(elements[0])
-    let connection = createPeerConnection(stream)
-    let whip = startCast(connection)
-    // Promise.allSettled(promises).then(arr => sendResponse(arr.map(r => r.value)))
-    return true
-})
-
-// Workaround for some websites librezam wont work
-const script = document.createElement('script');
-script.type = 'text/javascript';
-script.src = chrome.runtime.getURL("/utils/fixHeadlessAudio.js");
-(document.head || document.documentElement).appendChild(script);
-
-// Ensure Shadow-root is explored recursively (Fix for some websites such as reddit)
-// https://stackoverflow.com/a/75787966/27020071
-function findMediaElements() {
-    const elements = Array.from(document.querySelectorAll('audio, video'))
-    for (const {shadowRoot} of document.querySelectorAll("*")) {
-        if (shadowRoot) {
-            elements.push(...shadowRoot.querySelectorAll("audio, video"));
-        }
+// Add cast button to video elements
+function addCastButtonToVideo(videoElement) {
+    // Skip if button already exists
+    if (videoElement.parentElement.querySelector('.mtxcast-button')) {
+        return;
     }
-    return elements.filter(media => !media.paused);
-}
 
-function createStream(elem){
-    let stream = elem.captureStream ? elem.captureStream() : elem.mozCaptureStream()
+    // Create button element
+    const castButton = document.createElement('button');
+    castButton.className = 'mtxcast-button';
+    castButton.innerHTML = '📺 Cast';
+    castButton.title = 'Cast this video';
+    
+    // Add styles
+    castButton.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10000;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    `;
 
-    if (!elem.classList.contains("librezamFlag") && !elem.captureStream){
-        let audioCtx = new AudioContext()
-        let source = audioCtx.createMediaElementSource(elem)
-        source.connect(audioCtx.destination)
-        elem.classList.add("librezamFlag")
-    }
-    return stream
-}
-
-function createPeerConnection(stream){
-    const pc = new RTCPeerConnection({ bundlePolicy: "max-bundle" })
-    for (const track of stream.getTracks()) {
-        //You could add simulcast too here
-        pc.addTransceiver(track, { 'direction': 'sendonly' });
-    }
-    pc.addEventListener("iceconnectionstatechange", (event) => {
-        if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
-            /* possibly reconfigure the connection in some way here */
-            /* then request ICE restart */
-            pc.restartIce();
-        }
+    // Hover effect
+    castButton.addEventListener('mouseenter', () => {
+        castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
     });
-    return pc
+    castButton.addEventListener('mouseleave', () => {
+        castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    });
+
+    // Click handler - apply casting.css and debug log
+    castButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        // Apply casting.css by adding a class to the video element
+        videoElement.classList.add('mtxcast-casting');
+        
+        console.log('[MTXCast] Cast button clicked');
+        console.log('[MTXCast] Video element:', videoElement);
+        console.log('[MTXCast] Video source:', videoElement.src || videoElement.currentSrc);
+        console.log('[MTXCast] Video duration:', videoElement.duration);
+        console.log('[MTXCast] Video current time:', videoElement.currentTime);
+        console.log('[MTXCast] Video paused:', videoElement.paused);
+        console.log('[MTXCast] Casting CSS applied');
+
+        let currentTime = videoElement.currentTime;
+        let url = location.href
+        chrome.runtime.sendMessage({
+            type: 'cast',
+            currentTime: currentTime,
+            url: url
+        });
+    });
+
+    // Make sure parent element has relative positioning
+    const parent = videoElement.parentElement;
+    if (parent && window.getComputedStyle(parent).position === 'static') {
+        parent.style.position = 'relative';
+    }
+
+    // Insert button into parent element
+    parent.insertBefore(castButton, videoElement.nextSibling);
 }
 
-async function startCast(connection) {
-    const { WHIPClient } = await import(chrome.runtime.getURL("/libs/whip.js"));
-    const whip = new WHIPClient();
-    const url = "http://127.0.0.1:8889/mystream/whip"
-    whip.publish(connection, url, null);
-    return whip
+// Process all video elements on the page
+function processVideoElements() {
+    const videos = document.querySelectorAll('video');
+    videos.forEach(video => {
+        addCastButtonToVideo(video);
+    });
 }
+
+// Initial processing
+processVideoElements();
+
+// Watch for dynamically added video elements
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                // Check if the added node is a video element
+                if (node.tagName === 'VIDEO') {
+                    addCastButtonToVideo(node);
+                }
+                // Check for video elements within the added node
+                const videos = node.querySelectorAll?.('video');
+                if (videos) {
+                    videos.forEach(video => {
+                        addCastButtonToVideo(video);
+                    });
+                }
+            }
+        });
+    });
+});
+
+// Start observing
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
+
+console.log('[MTXCast] Content script loaded');
