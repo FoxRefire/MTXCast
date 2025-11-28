@@ -315,6 +315,7 @@ class PlayerBackend(QtCore.QObject):
         self._current_title: str | None = None
         self._retry_attempts = 0
         self._max_retries = 3
+        self._pending_seek: float | None = None
 
         self._retry_timer = QtCore.QTimer(self)
         self._retry_timer.setSingleShot(True)
@@ -329,7 +330,10 @@ class PlayerBackend(QtCore.QObject):
         self._player.setSource(QtCore.QUrl(url))
         self._player.play()
         if start_time:
-            self._player.setPosition(int(start_time * 1000))
+            self._pending_seek = start_time
+            self._apply_pending_seek()
+        else:
+            self._pending_seek = None
         self._mode = "metadata"
         self._current_source_url = url
         self._current_title = title
@@ -393,6 +397,7 @@ class PlayerBackend(QtCore.QObject):
         ):
             self._retry_attempts = 0
             self._retry_timer.stop()
+            self._apply_pending_seek()
 
     def _retry_metadata_playback(self) -> None:
         if self._mode != "metadata" or not self._current_source_url:
@@ -412,6 +417,12 @@ class PlayerBackend(QtCore.QObject):
                 self._current_title,
             )
         )
+
+    def _apply_pending_seek(self) -> None:
+        if self._mode == "metadata" and self._pending_seek is not None:
+            position_ms = int(self._pending_seek * 1000)
+            self._player.setPosition(position_ms)
+            self._pending_seek = None
 
     async def get_metrics(self) -> PlaybackMetrics:
         if self._mode == "metadata":
