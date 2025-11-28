@@ -404,7 +404,6 @@ function addCastButtonToVideo(videoElement) {
             
             // Remove casting state from video
             videoElement.classList.remove('mtxcast-casting');
-            videoElement.muted = false;
             
             // Update button
             updateCastButton(false);
@@ -416,7 +415,7 @@ function addCastButtonToVideo(videoElement) {
         // Start casting
         // Apply casting.css by adding a class to the video element
         videoElement.classList.add('mtxcast-casting');
-        videoElement.muted = true;
+        videoElement.pause();
         
         console.log('[MTXCast] Cast button clicked');
         console.log('[MTXCast] Video element:', videoElement);
