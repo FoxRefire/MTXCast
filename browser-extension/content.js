@@ -5,9 +5,13 @@ const syncState = {
     syncInterval: null,
     lastSeekTime: 0,
     isAdjusting: false,
+    lastServerSeekTime: 0, // Timestamp when we last sent seek to server
+    lastServerSeekPosition: null, // Position we last sent to server
     threshold: 1.0, // seconds - threshold for sync adjustment
     pollInterval: 1000, // milliseconds - how often to check server status
-    serverUrl: 'http://127.0.0.1:8080'
+    serverUrl: 'http://127.0.0.1:8080',
+    serverSeekCooldown: 3000, // milliseconds - ignore server sync after sending seek (increased for reliability)
+    castButton: null // Reference to the cast button element
 };
 
 // Get server status
@@ -24,19 +28,57 @@ async function getServerStatus() {
     }
 }
 
+// Stop casting on server
+async function stopCasting() {
+    try {
+        const response = await fetch(`${syncState.serverUrl}/control/stop`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.error(`[MTXCast] Server stop failed with status ${response.status}`);
+            return false;
+        }
+        
+        console.log('[MTXCast] Server stop successful');
+        return true;
+    } catch (error) {
+        console.error('[MTXCast] Failed to stop server:', error);
+        return false;
+    }
+}
+
 // Seek server to position
 async function seekServer(position) {
+    // Immediately record that we're sending a seek to prevent sync interference
+    const seekStartTime = Date.now();
+    syncState.lastServerSeekTime = seekStartTime;
+    syncState.lastServerSeekPosition = position;
+    
     try {
-        await fetch(`${syncState.serverUrl}/control/seek`, {
+        const response = await fetch(`${syncState.serverUrl}/control/seek`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ position: position })
         });
+        
+        if (!response.ok) {
+            console.error(`[MTXCast] Server seek failed with status ${response.status}`);
+            return false;
+        }
+        
+        console.log(`[MTXCast] Server seek successful: ${position.toFixed(2)}s`);
         return true;
     } catch (error) {
         console.error('[MTXCast] Failed to seek server:', error);
+        // Reset on error so sync can continue
+        syncState.lastServerSeekTime = 0;
+        syncState.lastServerSeekPosition = null;
         return false;
     }
 }
@@ -44,6 +86,12 @@ async function seekServer(position) {
 // Synchronize video with server
 async function syncWithServer() {
     if (!syncState.active || !syncState.videoElement) {
+        return;
+    }
+
+    // Don't sync if we recently sent a seek to server (cooldown period)
+    const timeSinceLastSeek = Date.now() - syncState.lastServerSeekTime;
+    if (timeSinceLastSeek < syncState.serverSeekCooldown) {
         return;
     }
 
@@ -63,6 +111,27 @@ async function syncWithServer() {
     const videoPosition = video.currentTime;
     const diff = Math.abs(serverPosition - videoPosition);
 
+    // If we recently sent a seek to server, be more lenient with sync
+    if (syncState.lastServerSeekPosition !== null && timeSinceLastSeek < syncState.serverSeekCooldown * 2) {
+        const serverDiffFromLastSeek = Math.abs(serverPosition - syncState.lastServerSeekPosition);
+        
+        // If server is close to the position we sent (within 1 second), don't sync
+        // This allows server time to process the seek
+        if (serverDiffFromLastSeek < 1.0) {
+            // Server is at or near the position we sent, this is expected - don't sync
+            return;
+        }
+        
+        // If server is still far from the position we sent after cooldown, 
+        // it might have failed - allow sync but with higher threshold
+        if (timeSinceLastSeek > syncState.serverSeekCooldown) {
+            // Use a higher threshold to avoid unnecessary syncs during seek processing
+            if (diff < syncState.threshold * 2) {
+                return;
+            }
+        }
+    }
+
     // If difference exceeds threshold and we're not currently adjusting, sync the video
     if (diff > syncState.threshold && !syncState.isAdjusting) {
         console.log(`[MTXCast] Sync: Server=${serverPosition.toFixed(2)}s, Video=${videoPosition.toFixed(2)}s, Diff=${diff.toFixed(2)}s`);
@@ -70,10 +139,10 @@ async function syncWithServer() {
         syncState.isAdjusting = true;
         video.currentTime = serverPosition;
         
-        // Reset adjusting flag after a short delay
+        // Reset adjusting flag after a longer delay to prevent immediate re-triggering
         setTimeout(() => {
             syncState.isAdjusting = false;
-        }, 500);
+        }, 1500);
     }
 }
 
@@ -94,12 +163,27 @@ function startSync(videoElement) {
     syncState.lastVideoTime = videoElement.currentTime;
 
     // Listen for user-initiated seeks
-    const handleSeek = () => {
+    const handleSeek = async () => {
         // Only sync if this is a user-initiated seek (not our own adjustment)
         if (!syncState.isAdjusting && syncState.active) {
             const currentTime = videoElement.currentTime;
             console.log(`[MTXCast] User seek detected: ${currentTime.toFixed(2)}s`);
-            seekServer(currentTime);
+            
+            // Temporarily mark as adjusting to prevent sync interference
+            syncState.isAdjusting = true;
+            
+            // Send seek to server and wait for completion
+            const success = await seekServer(currentTime);
+            
+            if (success) {
+                // Keep adjusting flag for a bit longer to ensure server processes the seek
+                setTimeout(() => {
+                    syncState.isAdjusting = false;
+                }, 500);
+            } else {
+                // Reset immediately on failure
+                syncState.isAdjusting = false;
+            }
         }
     };
 
@@ -110,7 +194,8 @@ function startSync(videoElement) {
         }
     };
 
-    // Listen for timeupdate to detect large jumps (fallback for cases where seeked doesn't fire)
+    // Track timeupdate for jump detection
+    let lastTimeupdateTime = Date.now();
     const timeupdateHandler = () => {
         if (syncState.isAdjusting) {
             return;
@@ -118,15 +203,26 @@ function startSync(videoElement) {
 
         const currentTime = videoElement.currentTime;
         const lastTime = syncState.lastVideoTime;
-        const jump = Math.abs(currentTime - lastTime);
+        const now = Date.now();
+        const timeSinceLastUpdate = now - lastTimeupdateTime;
+        
+        // Only check for jumps if enough time has passed (avoid checking every frame)
+        if (timeSinceLastUpdate < 100) {
+            return;
+        }
 
+        const jump = Math.abs(currentTime - lastTime);
+        
         // Detect large jumps (user seeking)
         // Normal playback advances gradually, so jumps > 0.5s are likely user seeks
-        if (jump > 0.5) {
+        // Also check that the jump is not just normal playback (consider time elapsed)
+        const expectedAdvance = (timeSinceLastUpdate / 1000) * 1.0; // Assume 1x playback speed
+        if (jump > 0.5 && jump > expectedAdvance * 1.5) {
             handleSeek();
         }
 
         syncState.lastVideoTime = currentTime;
+        lastTimeupdateTime = now;
     };
 
     videoElement.addEventListener('seeked', seekedHandler);
@@ -161,8 +257,30 @@ function stopSync() {
     syncState.videoElement = null;
     syncState.isAdjusting = false;
     syncState.lastVideoTime = null;
+    syncState.lastServerSeekTime = 0;
+    syncState.lastServerSeekPosition = null;
+    
+    // Update button state
+    updateCastButton(false);
 
     console.log('[MTXCast] Synchronization stopped');
+}
+
+// Update cast button state
+function updateCastButton(isCasting) {
+    if (!syncState.castButton) {
+        return;
+    }
+    
+    if (isCasting) {
+        syncState.castButton.innerHTML = '⏹ Stop';
+        syncState.castButton.title = 'Stop casting';
+        syncState.castButton.style.backgroundColor = 'rgba(200, 0, 0, 0.7)';
+    } else {
+        syncState.castButton.innerHTML = '📺 Cast';
+        syncState.castButton.title = 'Cast this video';
+        syncState.castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    }
 }
 
 // Add cast button to video elements
@@ -177,6 +295,9 @@ function addCastButtonToVideo(videoElement) {
     castButton.className = 'mtxcast-button';
     castButton.innerHTML = '📺 Cast';
     castButton.title = 'Cast this video';
+    
+    // Store button reference
+    syncState.castButton = castButton;
     
     // Add styles
     castButton.style.cssText = `
@@ -197,17 +318,47 @@ function addCastButtonToVideo(videoElement) {
 
     // Hover effect
     castButton.addEventListener('mouseenter', () => {
-        castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        if (syncState.active) {
+            castButton.style.backgroundColor = 'rgba(200, 0, 0, 0.9)';
+        } else {
+            castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+        }
     });
     castButton.addEventListener('mouseleave', () => {
-        castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        if (syncState.active) {
+            castButton.style.backgroundColor = 'rgba(200, 0, 0, 0.7)';
+        } else {
+            castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        }
     });
 
-    // Click handler - apply casting.css and debug log
-    castButton.addEventListener('click', (e) => {
+    // Click handler
+    castButton.addEventListener('click', async (e) => {
         e.stopPropagation();
         e.preventDefault();
         
+        // If already casting, stop casting
+        if (syncState.active) {
+            console.log('[MTXCast] Stop button clicked');
+            
+            // Stop synchronization
+            stopSync();
+            
+            // Stop server casting
+            await stopCasting();
+            
+            // Remove casting state from video
+            videoElement.classList.remove('mtxcast-casting');
+            videoElement.muted = false;
+            
+            // Update button
+            updateCastButton(false);
+            
+            console.log('[MTXCast] Casting stopped');
+            return;
+        }
+        
+        // Start casting
         // Apply casting.css by adding a class to the video element
         videoElement.classList.add('mtxcast-casting');
         videoElement.muted = true;
@@ -231,6 +382,9 @@ function addCastButtonToVideo(videoElement) {
 
         // Start synchronization
         startSync(videoElement);
+        
+        // Update button
+        updateCastButton(true);
     });
 
     // Make sure parent element has relative positioning

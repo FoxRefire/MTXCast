@@ -108,6 +108,14 @@ def build_api(manager: StreamManager, whip: WhipEndpoint, config: ServerConfig) 
         state = await manager.set_volume(volume)
         return {"volume": state.volume}
 
+    @app.post(f"{config.control_endpoint}/stop", dependencies=[token_dep])
+    async def control_stop() -> dict:
+        state = await manager.stop()
+        return {
+            "stream_type": state.stream_type.name,
+            "is_playing": state.is_playing,
+        }
+
     return app
 
 
