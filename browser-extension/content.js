@@ -7,6 +7,7 @@ const syncState = {
     isAdjusting: false,
     lastServerSeekTime: 0, // Timestamp when we last sent seek to server
     lastServerSeekPosition: null, // Position we last sent to server
+    lastServerPosition: null, // Last known server position (for detecting resets)
     threshold: 1.0, // seconds - threshold for sync adjustment
     pollInterval: 1000, // milliseconds - how often to check server status
     serverHost: '127.0.0.1',
@@ -139,6 +140,17 @@ async function syncWithServer() {
     const videoPosition = video.currentTime;
     const diff = Math.abs(serverPosition - videoPosition);
 
+    // Detect if server position has reset to 0 unexpectedly
+    // This can happen during media loading or buffering issues
+    if (serverPosition < 0.5 && syncState.lastServerPosition !== null && syncState.lastServerPosition > 1.0) {
+        // Server position appears to have reset to 0, but we were at a later position
+        // This is likely an unwanted reset - don't sync to 0
+        console.log(`[MTXCast] Ignoring server position reset from ${syncState.lastServerPosition.toFixed(2)}s to ${serverPosition.toFixed(2)}s`);
+        // Update lastServerPosition but don't sync
+        syncState.lastServerPosition = serverPosition;
+        return;
+    }
+
     // If we recently sent a seek to server, be more lenient with sync
     if (syncState.lastServerSeekPosition !== null && timeSinceLastSeek < syncState.serverSeekCooldown * 2) {
         const serverDiffFromLastSeek = Math.abs(serverPosition - syncState.lastServerSeekPosition);
@@ -147,6 +159,7 @@ async function syncWithServer() {
         // This allows server time to process the seek
         if (serverDiffFromLastSeek < 1.0) {
             // Server is at or near the position we sent, this is expected - don't sync
+            syncState.lastServerPosition = serverPosition;
             return;
         }
         
@@ -155,6 +168,7 @@ async function syncWithServer() {
         if (timeSinceLastSeek > syncState.serverSeekCooldown) {
             // Use a higher threshold to avoid unnecessary syncs during seek processing
             if (diff < syncState.threshold * 2) {
+                syncState.lastServerPosition = serverPosition;
                 return;
             }
         }
@@ -162,15 +176,26 @@ async function syncWithServer() {
 
     // If difference exceeds threshold and we're not currently adjusting, sync the video
     if (diff > syncState.threshold && !syncState.isAdjusting) {
+        // Don't sync to 0 if video is at a reasonable position (likely unwanted reset)
+        if (serverPosition < 0.5 && videoPosition > 1.0) {
+            console.log(`[MTXCast] Ignoring sync to 0: Server=${serverPosition.toFixed(2)}s, Video=${videoPosition.toFixed(2)}s`);
+            syncState.lastServerPosition = serverPosition;
+            return;
+        }
+        
         console.log(`[MTXCast] Sync: Server=${serverPosition.toFixed(2)}s, Video=${videoPosition.toFixed(2)}s, Diff=${diff.toFixed(2)}s`);
         
         syncState.isAdjusting = true;
         video.currentTime = serverPosition;
+        syncState.lastServerPosition = serverPosition;
         
         // Reset adjusting flag after a longer delay to prevent immediate re-triggering
         setTimeout(() => {
             syncState.isAdjusting = false;
         }, 1500);
+    } else {
+        // Update last server position even if we don't sync
+        syncState.lastServerPosition = serverPosition;
     }
 }
 
@@ -183,6 +208,7 @@ function startSync(videoElement) {
     syncState.active = true;
     syncState.videoElement = videoElement;
     syncState.lastSeekTime = Date.now();
+    syncState.lastServerPosition = null; // Reset server position tracking
 
     // Poll server status periodically
     syncState.syncInterval = setInterval(syncWithServer, syncState.pollInterval);
@@ -287,6 +313,7 @@ function stopSync() {
     syncState.lastVideoTime = null;
     syncState.lastServerSeekTime = 0;
     syncState.lastServerSeekPosition = null;
+    syncState.lastServerPosition = null;
     
     // Update button state
     updateCastButton(false);

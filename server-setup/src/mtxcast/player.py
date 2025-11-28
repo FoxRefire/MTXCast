@@ -485,11 +485,25 @@ class PlayerBackend(QtCore.QObject):
         self._player.play()
 
     async def seek(self, position: float) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Ensure position is valid
+        if position < 0:
+            position = 0.0
+        
+        # If we have a duration, ensure position doesn't exceed it
+        if self._current_duration and position > self._current_duration:
+            position = self._current_duration
+        
+        logger.info("Seeking to position: %.2f seconds", position)
         self._is_seeking = True
         self._last_valid_position = position
         self._player.setPosition(int(position * 1000))
-        # Reset seeking flag after a short delay
-        QtCore.QTimer.singleShot(500, lambda: setattr(self, "_is_seeking", False))
+        
+        # Reset seeking flag after a delay to allow position to stabilize
+        # Use a longer delay to ensure position has time to update
+        QtCore.QTimer.singleShot(1000, lambda: setattr(self, "_is_seeking", False))
 
     async def set_volume(self, volume: float) -> None:
         self._volume = max(0.0, min(volume, 1.0))
@@ -586,11 +600,13 @@ class PlayerBackend(QtCore.QObject):
             position_ms = int(self._pending_seek * 1000)
             target_position = self._pending_seek
             logger.info("Applying seek to position: %.2f seconds", target_position)
+            self._last_valid_position = target_position
             self._player.setPosition(position_ms)
             self._pending_seek = None
             self._seek_applied = True
-            # Reset seeking flag after a short delay to allow position to stabilize
-            QtCore.QTimer.singleShot(500, lambda: setattr(self, "_is_seeking", False))
+            # Reset seeking flag after a delay to allow position to stabilize
+            # Use a longer delay to ensure position has time to update
+            QtCore.QTimer.singleShot(1000, lambda: setattr(self, "_is_seeking", False))
 
     def _on_position_changed(self, position_ms: int) -> None:
         if self._mode == "metadata":
@@ -598,13 +614,24 @@ class PlayerBackend(QtCore.QObject):
             
             # Ignore position changes that jump back to 0 unexpectedly
             # This can happen during media loading or buffering
-            if self._last_valid_position is not None and position < self._last_valid_position - 1.0:
-                # If position jumps back more than 1 second, it's likely an unwanted reset
-                if not self._is_seeking and self._seek_applied:
+            if self._last_valid_position is not None and position < self._last_valid_position - 0.5:
+                # If position jumps back more than 0.5 seconds, it's likely an unwanted reset
+                # Only ignore if we're not currently seeking and media has been loaded
+                if not self._is_seeking and self._seek_applied and self._current_duration:
                     import logging
                     logger = logging.getLogger(__name__)
-                    logger.debug("Ignoring position reset from %.2f to %.2f", self._last_valid_position, position)
-                    return
+                    logger.debug("Ignoring position reset from %.2f to %.2f (using last valid position)", self._last_valid_position, position)
+                    # Use last valid position instead of the reset position
+                    position = self._last_valid_position
+                    # Update player position to prevent further resets
+                    if position > 0:
+                        self._player.setPosition(int(position * 1000))
+                elif not self._seek_applied:
+                    # Media is still loading, allow position to update but don't treat as valid yet
+                    pass
+                else:
+                    # We're seeking or media not fully loaded, allow position update
+                    pass
             
             # Check if playback reached the end
             if not self._is_stopping and self._current_duration and position >= self._current_duration - 0.5:
@@ -617,8 +644,8 @@ class PlayerBackend(QtCore.QObject):
                 loop.create_task(self.stop())
                 return
             
-            # Update last valid position if it's reasonable
-            if position >= 0:
+            # Update last valid position if it's reasonable and not a reset
+            if position >= 0 and (self._last_valid_position is None or position >= self._last_valid_position - 0.5):
                 self._last_valid_position = position
             
             self._window.update_progress(position, self._current_duration, True)
@@ -638,8 +665,19 @@ class PlayerBackend(QtCore.QObject):
         if self._mode == "metadata":
             position_ms = self._player.position()
             duration_ms = self._player.duration()
+            position = position_ms / 1000 if position_ms >= 0 else 0.0
+            
+            # Use last valid position if current position seems to be reset unexpectedly
+            if self._last_valid_position is not None and position < self._last_valid_position - 0.5:
+                # Position appears to have reset, use last valid position
+                if self._seek_applied and not self._is_seeking:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug("Using last valid position %.2f instead of reset position %.2f", self._last_valid_position, position)
+                    position = self._last_valid_position
+            
             return PlaybackMetrics(
-                position=position_ms / 1000 if position_ms >= 0 else 0.0,
+                position=position,
                 duration=duration_ms / 1000 if duration_ms > 0 else None,
                 is_seekable=True,
             )
