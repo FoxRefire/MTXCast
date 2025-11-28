@@ -42,7 +42,7 @@ if(chrome.windows){
             url: "popup/popup.html",
             type: "popup",
             width: 380,
-            height: 500
+            height: 580
         });
     });
 } else {

@@ -222,6 +222,11 @@ class PlayerWindow(QtWidgets.QMainWindow):
         self._controls.set_progress(None, None, False)
         self.hide()
 
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        """Override closeEvent to hide window instead of closing application"""
+        event.ignore()
+        self.hide()
+
 
 class TrayIcon(QtWidgets.QSystemTrayIcon):
     def __init__(self, window: PlayerWindow) -> None:
