@@ -44,6 +44,7 @@ class ControlBar(QtWidgets.QWidget):
     pause_clicked = QtCore.Signal()
     stop_clicked = QtCore.Signal()
     seek_requested = QtCore.Signal(float)
+    fullscreen_clicked = QtCore.Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -68,6 +69,7 @@ class ControlBar(QtWidgets.QWidget):
         self.play_button = QtWidgets.QPushButton("Play")
         self.pause_button = QtWidgets.QPushButton("Pause")
         self.stop_button = QtWidgets.QPushButton("Stop")
+        self.fullscreen_button = QtWidgets.QPushButton("⛶ Fullscreen")
         self.volume_slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
@@ -75,6 +77,7 @@ class ControlBar(QtWidgets.QWidget):
         button_row.addWidget(self.play_button)
         button_row.addWidget(self.pause_button)
         button_row.addWidget(self.stop_button)
+        button_row.addWidget(self.fullscreen_button)
         button_row.addWidget(QtWidgets.QLabel("Volume"))
         button_row.addWidget(self.volume_slider)
 
@@ -83,6 +86,14 @@ class ControlBar(QtWidgets.QWidget):
         self.play_button.clicked.connect(self.play_clicked.emit)
         self.pause_button.clicked.connect(self.pause_clicked.emit)
         self.stop_button.clicked.connect(self.stop_clicked.emit)
+        self.fullscreen_button.clicked.connect(self.fullscreen_clicked.emit)
+
+    def update_fullscreen_button(self, is_fullscreen: bool) -> None:
+        """Update fullscreen button text based on current state"""
+        if is_fullscreen:
+            self.fullscreen_button.setText("⛶ Window")
+        else:
+            self.fullscreen_button.setText("⛶ Fullscreen")
 
     def set_progress(self, position: float | None, duration: float | None, is_seekable: bool) -> None:
         can_seek = bool(is_seekable and duration and duration > 0)
@@ -148,6 +159,7 @@ class PlayerWindow(QtWidgets.QMainWindow):
         self._controls.stop_clicked.connect(self._on_stop)
         self._controls.seek_requested.connect(self._on_seek)
         self._controls.volume_slider.valueChanged.connect(self._on_volume)
+        self._controls.fullscreen_clicked.connect(self._on_fullscreen_toggle)
         self._controls.setVisible(False)
 
         layout = QtWidgets.QVBoxLayout()
@@ -185,6 +197,8 @@ class PlayerWindow(QtWidgets.QMainWindow):
         self.activateWindow()
         if self._config.auto_fullscreen and not self.isFullScreen():
             self.showFullScreen()
+        # Update fullscreen button state
+        self._controls.update_fullscreen_button(self.isFullScreen())
 
     def set_volume_slider(self, value: float) -> None:
         self._controls.volume_slider.blockSignals(True)
@@ -205,6 +219,21 @@ class PlayerWindow(QtWidgets.QMainWindow):
 
     def _on_seek(self, position: float) -> None:
         self.seek_requested.emit(position)
+
+    def _on_fullscreen_toggle(self) -> None:
+        """Toggle fullscreen mode"""
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+        # Update button text
+        self._controls.update_fullscreen_button(self.isFullScreen())
+
+    def changeEvent(self, event: QtCore.QEvent) -> None:
+        """Handle window state changes to update fullscreen button"""
+        if event.type() == QtCore.QEvent.Type.WindowStateChange:
+            self._controls.update_fullscreen_button(self.isFullScreen())
+        super().changeEvent(event)
 
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
         if event.type() == QtCore.QEvent.Type.MouseMove:
