@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from aiortc import RTCPeerConnection
-from aiortc.mediastreams import MediaStreamTrack
+from aiortc.mediastreams import MediaStreamTrack, MediaStreamError
 from av import VideoFrame
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
@@ -333,11 +333,17 @@ class WebRTCSession:
                         self._canvas.render_frame(image)
                     else:
                         logger.warning("Failed to convert frame to QImage")
+                except MediaStreamError:
+                    # Stream ended normally
+                    logger.info("WebRTC stream ended (MediaStreamError)")
+                    break
                 except Exception as e:
                     logger.error("Error processing frame: %s", e, exc_info=True)
                     await asyncio.sleep(0.1)  # Prevent tight loop on errors
         except asyncio.CancelledError:
             logger.info("WebRTC track reader cancelled")
+        except MediaStreamError:
+            logger.info("WebRTC stream ended")
         except Exception as e:
             logger.error("WebRTC track reader error: %s", e, exc_info=True)
 
