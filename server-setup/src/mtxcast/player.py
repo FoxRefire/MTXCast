@@ -98,6 +98,10 @@ class PlayerWindow(QtWidgets.QMainWindow):
 
     def show_player(self, use_webrtc: bool) -> None:
         self._stack.setCurrentWidget(self._canvas if use_webrtc else self._video_widget)
+        if not self.isVisible():
+            self.show()
+        self.raise_()
+        self.activateWindow()
         if self._config.auto_fullscreen and not self.isFullScreen():
             self.showFullScreen()
 
@@ -335,6 +339,6 @@ def build_ui(config: ServerConfig) -> UIHandles:
     window = PlayerWindow(config)
     backend = PlayerBackend(window)
     tray = TrayIcon(window)
-    window.show()
+    window.hide()  # Hide until playback starts
     return UIHandles(app=app, window=window, tray=tray, backend=backend)
 
