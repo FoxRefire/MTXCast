@@ -9,15 +9,43 @@ const syncState = {
     lastServerSeekPosition: null, // Position we last sent to server
     threshold: 1.0, // seconds - threshold for sync adjustment
     pollInterval: 1000, // milliseconds - how often to check server status
-    serverUrl: 'http://127.0.0.1:8080',
+    serverHost: '127.0.0.1',
+    serverPort: 8080,
     serverSeekCooldown: 3000, // milliseconds - ignore server sync after sending seek (increased for reliability)
     castButton: null // Reference to the cast button element
 };
 
+// Get server URL
+function getServerUrl() {
+    return `http://${syncState.serverHost}:${syncState.serverPort}`;
+}
+
+// Load settings from storage
+async function loadSettings() {
+    try {
+        const result = await chrome.storage.sync.get(['serverHost', 'serverPort']);
+        if (result.serverHost) syncState.serverHost = result.serverHost;
+        if (result.serverPort) syncState.serverPort = result.serverPort;
+        console.log('[MTXCast] Settings loaded:', syncState.serverHost, syncState.serverPort);
+    } catch (error) {
+        console.error('[MTXCast] Failed to load settings:', error);
+    }
+}
+
+// Initialize settings
+loadSettings();
+
+// Listen for settings updates
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'settingsUpdated') {
+        loadSettings();
+    }
+});
+
 // Get server status
 async function getServerStatus() {
     try {
-        const response = await fetch(`${syncState.serverUrl}/status`);
+        const response = await fetch(`${getServerUrl()}/status`);
         if (!response.ok) {
             return null;
         }
@@ -31,7 +59,7 @@ async function getServerStatus() {
 // Stop casting on server
 async function stopCasting() {
     try {
-        const response = await fetch(`${syncState.serverUrl}/control/stop`, {
+        const response = await fetch(`${getServerUrl()}/control/stop`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -59,7 +87,7 @@ async function seekServer(position) {
     syncState.lastServerSeekPosition = position;
     
     try {
-        const response = await fetch(`${syncState.serverUrl}/control/seek`, {
+        const response = await fetch(`${getServerUrl()}/control/seek`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

@@ -1,19 +1,94 @@
-<html>
-    <head>
-        <link href="/libs/material-icons/material-icons.css" rel="stylesheet">
-        <link type="text/css" rel="stylesheet" href="/libs/materialize/materialize.min.css" media="screen,projection"/>
-        <link href="popup.css" rel="stylesheet">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    </head>
-    <body>
-        <input type="range" value="0" min="0" max="10" step="0.1" id="seekRange">
-        <val id="seekRangeOut">00:00</val><br>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTXCast</title>
+    <link href="popup.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MTXCast</h1>
+            <div class="tabs">
+                <button class="tab-button active" data-tab="control">コントロール</button>
+                <button class="tab-button" data-tab="settings">設定</button>
+            </div>
+        </header>
 
-        <button id="playButton">Play</button>
-        <button id="pauseButton">Pause</button><br>
+        <!-- Control Tab -->
+        <div class="tab-content active" id="control-tab">
+            <div class="status-section">
+                <div class="status-item">
+                    <span class="status-label">状態:</span>
+                    <span class="status-value" id="streamStatus">接続中...</span>
+                </div>
+                <div class="status-item" id="titleItem" style="display: none;">
+                    <span class="status-label">タイトル:</span>
+                    <span class="status-value" id="streamTitle">-</span>
+                </div>
+            </div>
 
-        <button id="mirrorButton">Mirror screen</button>
-        <button id="mirrorStopButton">Stop mirroring</button><br>
-        <script src="./popup.js" type="module"></script>
-    </body>
+            <div class="seek-section" id="seekSection" style="display: none;">
+                <div class="seek-control">
+                    <input type="range" id="seekRange" min="0" max="100" step="0.1" value="0">
+                    <div class="seek-time">
+                        <span id="currentTime">00:00</span>
+                        <span id="duration">00:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button class="btn btn-primary" id="playButton">
+                    <span class="icon">▶</span>
+                    <span>再生</span>
+                </button>
+                <button class="btn btn-secondary" id="pauseButton">
+                    <span class="icon">⏸</span>
+                    <span>一時停止</span>
+                </button>
+                <button class="btn btn-danger" id="stopButton">
+                    <span class="icon">⏹</span>
+                    <span>停止</span>
+                </button>
+            </div>
+
+            <div class="mirror-section">
+                <h3>画面ミラーリング</h3>
+                <div class="control-buttons">
+                    <button class="btn btn-primary" id="mirrorButton">
+                        <span class="icon">🖥</span>
+                        <span>ミラー開始</span>
+                    </button>
+                    <button class="btn btn-secondary" id="mirrorStopButton" disabled>
+                        <span class="icon">⏹</span>
+                        <span>ミラー停止</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-content" id="settings-tab">
+            <div class="settings-section">
+                <h3>サーバー設定</h3>
+                <div class="form-group">
+                    <label for="serverHost">サーバーIP/ホスト名</label>
+                    <input type="text" id="serverHost" placeholder="127.0.0.1" value="127.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label for="serverPort">ポート</label>
+                    <input type="number" id="serverPort" placeholder="8080" value="8080" min="1" max="65535">
+                </div>
+                <button class="btn btn-primary" id="saveSettingsButton">
+                    <span class="icon">💾</span>
+                    <span>設定を保存</span>
+                </button>
+                <div class="status-message" id="settingsMessage"></div>
+            </div>
+        </div>
+    </div>
+    <script src="popup.js" type="module"></script>
+</body>
 </html>
