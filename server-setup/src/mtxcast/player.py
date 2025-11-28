@@ -311,8 +311,18 @@ class PlayerBackend(QtCore.QObject):
         self._audio.setVolume(self._volume)
         self._window.set_volume_slider(self._volume)
         self._mode: str = "idle"  # "metadata" or "whip"
+        self._current_source_url: str | None = None
+        self._current_title: str | None = None
+        self._retry_attempts = 0
+        self._max_retries = 3
+
+        self._retry_timer = QtCore.QTimer(self)
+        self._retry_timer.setSingleShot(True)
+        self._retry_timer.timeout.connect(self._retry_metadata_playback)
 
         window.volume_changed.connect(self._on_volume_changed)
+        self._player.errorOccurred.connect(self._handle_player_error)
+        self._player.mediaStatusChanged.connect(self._on_media_status_changed)
 
     async def play_url(self, url: str, start_time: float = 0.0, title: str | None = None) -> None:
         await self._webrtc_session.stop()
@@ -321,6 +331,10 @@ class PlayerBackend(QtCore.QObject):
         if start_time:
             self._player.setPosition(int(start_time * 1000))
         self._mode = "metadata"
+        self._current_source_url = url
+        self._current_title = title
+        self._retry_attempts = 0
+        self._retry_timer.stop()
         self._window.show_player(use_webrtc=False)
 
     async def attach_webrtc_track(self, track: MediaStreamTrack, pc: RTCPeerConnection) -> None:
@@ -350,6 +364,54 @@ class PlayerBackend(QtCore.QObject):
     def _on_volume_changed(self, value: float) -> None:
         self._volume = value
         self._audio.setVolume(self._volume)
+
+    def _handle_player_error(self, error, error_string: str) -> None:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        if error == QMediaPlayer.Error.NoError:  # type: ignore[attr-defined]
+            return
+        logger.error("QMediaPlayer error (%s): %s", error, error_string)
+        if self._mode == "metadata" and self._current_source_url:
+            if self._retry_attempts < self._max_retries:
+                self._retry_attempts += 1
+                delay_ms = min(5000, 1000 * self._retry_attempts)
+                logger.info(
+                    "Retrying metadata playback in %sms (attempt %s/%s)",
+                    delay_ms,
+                    self._retry_attempts,
+                    self._max_retries,
+                )
+                self._retry_timer.start(delay_ms)
+            else:
+                logger.error("Exceeded metadata playback retry attempts")
+
+    def _on_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
+        if status in (
+            QMediaPlayer.MediaStatus.BufferedMedia,
+            QMediaPlayer.MediaStatus.LoadedMedia,
+        ):
+            self._retry_attempts = 0
+            self._retry_timer.stop()
+
+    def _retry_metadata_playback(self) -> None:
+        if self._mode != "metadata" or not self._current_source_url:
+            return
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info("Retrying metadata playback now")
+        self._retry_timer.stop()
+        position_ms = self._player.position()
+        start_sec = position_ms / 1000 if position_ms > 0 else 0.0
+        loop = asyncio.get_event_loop()
+        loop.create_task(
+            self.play_url(
+                self._current_source_url,
+                start_sec,
+                self._current_title,
+            )
+        )
 
     async def get_metrics(self) -> PlaybackMetrics:
         if self._mode == "metadata":
