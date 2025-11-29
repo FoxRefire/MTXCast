@@ -1,17 +1,17 @@
 # MTXCast
 
-MTXCastはOBSなどの配信用途から直接WHIP(WebRTC-HTTP ingestion protocol)で送られてくる映像・音声、もしくはHTTP API経由で受信するメタデータ(URL/再生時間など)をもとに、PySide6製の独自プレイヤーで全画面再生を行う統合キャストサーバーです。
+MTXCast is an integrated cast server that performs full-screen playback using a custom PySide6 player, receiving video/audio directly via WHIP (WebRTC-HTTP ingestion protocol) from broadcasting tools like OBS, or metadata (URL/playback time, etc.) via HTTP API.
 
-## プロジェクト構成
+## Project Structure
 
-- **`server-setup/`**: MTXCastサーバー（Python/FastAPI）
-- **`browser-extension/`**: ブラウザ拡張機能（Chrome/Firefox対応）
-- **`cli-client/`**: コマンドラインクライアント（Python）
-- **`android-app/`**: Androidアプリ（Kotlin）
+- **`server-setup/`**: MTXCast server (Python/FastAPI)
+- **`browser-extension/`**: Browser extension (Chrome/Firefox compatible)
+- **`cli-client/`**: Command-line client (Python)
+- **`android-app/`**: Android app (Kotlin)
 
-## クイックスタート
+## Quick Start
 
-### サーバーの起動
+### Starting the Server
 
 ```bash
 cd server-setup
@@ -19,86 +19,86 @@ pip install -r requirements.txt
 python -m mtxcast.app
 ```
 
-詳細は [`server-setup/README.md`](server-setup/README.md) を参照してください。
+For details, see [`server-setup/README.md`](server-setup/README.md).
 
-### CLIクライアントの使用
+### Using the CLI Client
 
 ```bash
 cd cli-client
 pip install -r requirements.txt
 
-# ステータス確認
+# Check status
 python mtxcast_cli.py status
 
-# YouTube動画を再生
+# Play YouTube video
 python mtxcast_cli.py play-url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-# 再生制御
+# Playback control
 python mtxcast_cli.py play
 python mtxcast_cli.py pause
 python mtxcast_cli.py seek 120
 python mtxcast_cli.py volume 0.5
 ```
 
-詳細は [`cli-client/README.md`](cli-client/README.md) を参照してください。
+For details, see [`cli-client/README.md`](cli-client/README.md).
 
-### Androidアプリの使用
+### Using the Android App
 
-1. Android Studioで `android-app/` を開く
-2. ビルドしてデバイスにインストール
-3. アプリを起動し、設定画面でサーバーURLを入力
-4. メイン画面からサーバーを制御
+1. Open `android-app/` in Android Studio
+2. Build and install on device
+3. Launch the app and enter the server URL in the settings screen
+4. Control the server from the main screen
 
-詳細は [`android-app/README.md`](android-app/README.md) を参照してください。
+For details, see [`android-app/README.md`](android-app/README.md).
 
-### ブラウザ拡張機能の使用
+### Using the Browser Extension
 
-1. ChromeまたはFirefoxで拡張機能を読み込む
-2. ウェブページ上の動画に「📺 Cast」ボタンが表示される
-3. ボタンをクリックしてサーバーにキャスト
+1. Load the extension in Chrome or Firefox
+2. A "📺 Cast" button will appear on videos on web pages
+3. Click the button to cast to the server
 
-## 主な機能
+## Main Features
 
-### サーバー機能
+### Server Features
 
-- FastAPIベースのHTTP+WHIPエンドポイント
-- yt-dlpを用いたオンデマンドのストリーム解決と即時再生
-- 動画・音声ファイルのアップロードと再生
-- 再生/一時停止/シーク/音量調整などのリモート制御API
-- PySide6 + QtMultimediaによる内蔵プレイヤー
-- タスクトレイ常駐
+- FastAPI-based HTTP+WHIP endpoints
+- On-demand stream resolution and instant playback using yt-dlp
+- Video/audio file upload and playback
+- Remote control API for play/pause/seek/volume adjustment, etc.
+- Built-in player using PySide6 + QtMultimedia
+- System tray resident
 
-### クライアント機能
+### Client Features
 
-#### CLIクライアント
+#### CLI Client
 
-- コマンドラインからの全機能制御
-- JSON形式での出力対応
-- リモートサーバー接続対応
+- Full feature control from command line
+- JSON format output support
+- Remote server connection support
 
-#### Androidアプリ
+#### Android App
 
-- リアルタイムステータス表示
-- 直感的なUI操作
-- ファイルアップロード機能
-- URLからのメディア再生
+- Real-time status display
+- Intuitive UI operations
+- File upload functionality
+- Media playback from URL
 
-#### ブラウザ拡張機能
+#### Browser Extension
 
-- ウェブページ上の動画キャスト
-- 画面ミラーリング
-- ファイルアップロード
+- Cast videos on web pages
+- Screen mirroring
+- File upload
 
-## APIエンドポイント
+## API Endpoints
 
-- `POST /whip`: WHIPクライアントからのSDP Offerを受信
-- `POST /metadata`: メタデータで再生を開始
-- `POST /upload`: 動画・音声ファイルをアップロードして再生
-- `POST /control/play` / `pause` / `stop` / `seek` / `volume`: 再生制御
-- `GET /status`: 現在のステータス取得
+- `POST /whip`: Receive SDP Offer from WHIP client
+- `POST /metadata`: Start playback with metadata
+- `POST /upload`: Upload video/audio file and start playback
+- `POST /control/play` / `pause` / `stop` / `seek` / `volume`: Playback control
+- `GET /status`: Get current status
 
-詳細は [`server-setup/README.md`](server-setup/README.md) を参照してください。
+For details, see [`server-setup/README.md`](server-setup/README.md).
 
-## ライセンス
+## License
 
-本プロジェクトは `LICENSE` に従います。
+This project follows the `LICENSE` file.

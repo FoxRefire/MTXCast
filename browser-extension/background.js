@@ -61,7 +61,7 @@ async function castUrl(url, startTime = 0) {
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: 'cast-current-page',
-        title: 'このページをキャスト',
+        title: 'Cast this page',
         contexts: ['page', 'frame']
     });
 });

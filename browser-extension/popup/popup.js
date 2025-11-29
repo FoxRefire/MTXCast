@@ -46,12 +46,12 @@ async function saveSettings() {
     const port = parseInt(document.getElementById('serverPort').value);
     
     if (!host) {
-        showMessage('サーバーIP/ホスト名を入力してください', 'error');
+        showMessage('Please enter server IP/hostname', 'error');
         return;
     }
     
     if (isNaN(port) || port < 1 || port > 65535) {
-        showMessage('有効なポート番号を入力してください (1-65535)', 'error');
+        showMessage('Please enter a valid port number (1-65535)', 'error');
         return;
     }
     
@@ -62,7 +62,7 @@ async function saveSettings() {
             serverHost: host,
             serverPort: port
         });
-        showMessage('設定を保存しました', 'success');
+        showMessage('Settings saved', 'success');
         
         // Notify content script to reload settings
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -72,7 +72,7 @@ async function saveSettings() {
         });
     } catch (error) {
         console.error('Failed to save settings:', error);
-        showMessage('設定の保存に失敗しました', 'error');
+        showMessage('Failed to save settings', 'error');
     }
 }
 
@@ -105,7 +105,7 @@ async function updateStatus() {
     const status = await fetchStatus();
     
     if (!status) {
-        document.getElementById('streamStatus').textContent = '接続エラー';
+        document.getElementById('streamStatus').textContent = 'Connection Error';
         document.getElementById('streamStatus').style.color = '#dc3545';
         document.getElementById('seekSection').style.display = 'none';
         document.getElementById('titleItem').style.display = 'none';
@@ -114,9 +114,9 @@ async function updateStatus() {
     
     // Update status
     const statusText = {
-        'IDLE': '待機中',
-        'METADATA': 'メタデータ再生中',
-        'WHIP': 'WHIPストリーム中'
+        'IDLE': 'Idle',
+        'METADATA': 'Playing Metadata',
+        'WHIP': 'WHIP Streaming'
     };
     document.getElementById('streamStatus').textContent = statusText[status.stream_type] || status.stream_type;
     document.getElementById('streamStatus').style.color = status.stream_type === 'IDLE' ? '#6c757d' : '#28a745';
@@ -311,7 +311,7 @@ document.getElementById('mirrorButton').addEventListener('click', async () => {
         console.log('Screen mirroring started successfully');
     } catch (error) {
         console.error('Error starting screen mirroring:', error);
-        alert('画面ミラーリングの開始に失敗しました: ' + error.message);
+        alert('Failed to start screen mirroring: ' + error.message);
         // Clean up on error
         if (displayStream) {
             displayStream.getTracks().forEach(track => track.stop());
@@ -446,7 +446,7 @@ document.getElementById('uploadButton').addEventListener('click', async () => {
 
     } catch (error) {
         console.error('File upload error:', error);
-        alert('ファイルのアップロードに失敗しました: ' + error.message);
+        alert('File upload failed: ' + error.message);
         uploadProgress.style.display = 'none';
         uploadButton.disabled = false;
     }
@@ -492,28 +492,28 @@ document.getElementById('castCurrentPageButton').addEventListener('click', async
     const originalText = button.innerHTML;
     
     button.disabled = true;
-    button.innerHTML = '<span class="icon">⏳</span><span>キャスト中...</span>';
+    button.innerHTML = '<span class="icon">⏳</span><span>Casting...</span>';
     
     try {
         const url = await getCurrentTabUrl();
         if (!url) {
-            showMessage('現在のページのURLを取得できませんでした', 'error');
+            showMessage('Failed to get current page URL', 'error');
             return;
         }
         
         const success = await castUrl(url, 0);
         if (success) {
-            showMessage('キャストを開始しました', 'success');
+            showMessage('Cast started', 'success');
             // Update input field with current URL
             document.getElementById('castUrlInput').value = url;
             // Update status
             setTimeout(updateStatus, 500);
         } else {
-            showMessage('キャストの開始に失敗しました', 'error');
+            showMessage('Failed to start cast', 'error');
         }
     } catch (error) {
         console.error('Error casting current page:', error);
-        showMessage('エラーが発生しました: ' + error.message, 'error');
+        showMessage('An error occurred: ' + error.message, 'error');
     } finally {
         button.disabled = false;
         button.innerHTML = originalText;
@@ -527,7 +527,7 @@ document.getElementById('castUrlButton').addEventListener('click', async () => {
     const url = input.value.trim();
     
     if (!url) {
-        showMessage('URLを入力してください', 'error');
+        showMessage('Please enter a URL', 'error');
         return;
     }
     
@@ -535,26 +535,26 @@ document.getElementById('castUrlButton').addEventListener('click', async () => {
     try {
         new URL(url);
     } catch (e) {
-        showMessage('有効なURLを入力してください', 'error');
+        showMessage('Please enter a valid URL', 'error');
         return;
     }
     
     const originalText = button.innerHTML;
     button.disabled = true;
-    button.innerHTML = '<span class="icon">⏳</span><span>キャスト中...</span>';
+    button.innerHTML = '<span class="icon">⏳</span><span>Casting...</span>';
     
     try {
         const success = await castUrl(url, 0);
         if (success) {
-            showMessage('キャストを開始しました', 'success');
+            showMessage('Cast started', 'success');
             // Update status
             setTimeout(updateStatus, 500);
         } else {
-            showMessage('キャストの開始に失敗しました', 'error');
+            showMessage('Failed to start cast', 'error');
         }
     } catch (error) {
         console.error('Error casting URL:', error);
-        showMessage('エラーが発生しました: ' + error.message, 'error');
+        showMessage('An error occurred: ' + error.message, 'error');
     } finally {
         button.disabled = false;
         button.innerHTML = originalText;

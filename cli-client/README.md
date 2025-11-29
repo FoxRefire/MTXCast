@@ -1,119 +1,119 @@
 # MTXCast CLI Client
 
-MTXCastサーバーをコマンドラインから制御するためのCLIクライアントです。
+A CLI client for controlling the MTXCast server from the command line.
 
-## インストール
+## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-実行可能にする場合（オプション）:
+To make it executable (optional):
 ```bash
 chmod +x mtxcast_cli.py
-# または
+# or
 python -m pip install --editable .
 ```
 
-## 使用方法
+## Usage
 
-### 基本オプション
+### Basic Options
 
-- `--server URL`: サーバーURLを指定（デフォルト: `http://127.0.0.1:8080`）
-- `--token TOKEN`: APIトークンを指定（サーバーで設定されている場合）
-- `--json`: 結果をJSON形式で出力
+- `--server URL`: Specify server URL (default: `http://127.0.0.1:8080`)
+- `--token TOKEN`: Specify API token (if configured on server)
+- `--json`: Output results in JSON format
 
-### コマンド
+### Commands
 
-#### ステータス確認
+#### Check Status
 
 ```bash
-# 現在のステータスを取得
+# Get current status
 mtxcast-cli status
 
-# JSON形式で出力
+# Output in JSON format
 mtxcast-cli --json status
 ```
 
-#### 再生制御
+#### Playback Control
 
 ```bash
-# 再生/再開
+# Play/resume
 mtxcast-cli play
 
-# 一時停止
+# Pause
 mtxcast-cli pause
 
-# 停止
+# Stop
 mtxcast-cli stop
 ```
 
-#### シークと音量
+#### Seek and Volume
 
 ```bash
-# 120秒の位置にシーク
+# Seek to 120 seconds
 mtxcast-cli seek 120
 
-# 音量を50%に設定
+# Set volume to 50%
 mtxcast-cli volume 0.5
 ```
 
-#### URLから再生
+#### Play from URL
 
 ```bash
-# YouTube動画を再生
+# Play YouTube video
 mtxcast-cli play-url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-# 15秒の位置から再生開始
+# Start playback from 15 seconds
 mtxcast-cli play-url "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --start-time 15
 ```
 
-#### ファイルアップロード
+#### File Upload
 
 ```bash
-# 動画ファイルをアップロードして再生
+# Upload and play video file
 mtxcast-cli upload video.mp4
 
-# 30秒の位置から再生開始
+# Start playback from 30 seconds
 mtxcast-cli upload video.mp4 --start-time 30
 ```
 
-### リモートサーバーへの接続
+### Connecting to Remote Server
 
 ```bash
-# リモートサーバーに接続
+# Connect to remote server
 mtxcast-cli --server http://192.168.1.100:8080 status
 
-# APIトークンを使用
+# Use API token
 mtxcast-cli --server http://192.168.1.100:8080 --token your-api-token status
 ```
 
-## 例
+## Examples
 
 ```bash
-# サーバーの状態を確認
+# Check server status
 mtxcast-cli status
 
-# YouTube動画を再生
+# Play YouTube video
 mtxcast-cli play-url "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
-# 60秒待ってから一時停止
+# Wait 60 seconds then pause
 sleep 60
 mtxcast-cli pause
 
-# 120秒の位置にシーク
+# Seek to 120 seconds
 mtxcast-cli seek 120
 
-# 再生再開
+# Resume playback
 mtxcast-cli play
 
-# 音量を80%に設定
+# Set volume to 80%
 mtxcast-cli volume 0.8
 
-# 停止
+# Stop
 mtxcast-cli stop
 ```
 
-## エラーハンドリング
+## Error Handling
 
-エラーが発生した場合、エラーメッセージとHTTPレスポンスが表示されます。サーバーが起動しているか、URLやAPIトークンが正しいか確認してください。
+If an error occurs, an error message and HTTP response will be displayed. Please check if the server is running, and if the URL and API token are correct.

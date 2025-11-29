@@ -1,41 +1,41 @@
 # MTXCast Server Setup
 
-MTXCastはOBSなどの配信用途から直接WHIP(WebRTC-HTTP ingestion protocol)で送られてくる映像・音声、もしくはHTTP API経由で受信するメタデータ(URL/再生時間など)をもとに、PySide6製の独自プレイヤーで全画面再生を行う統合キャストサーバーです。
+MTXCast is an integrated cast server that performs full-screen playback using a custom PySide6 player, receiving video/audio directly via WHIP (WebRTC-HTTP ingestion protocol) from broadcasting tools like OBS, or metadata (URL/playback time, etc.) via HTTP API.
 
-## 主な機能
-- FastAPIベースのHTTP+WHIPエンドポイント
-- yt-dlpを用いたオンデマンドのストリーム解決と即時再生
-- 動画・音声ファイルのアップロードと再生
-- 再生/一時停止/シーク/音量調整などのリモート制御API
-- PySide6 + QtMultimediaによる内蔵プレイヤー、設定ダイアログ、タスクトレイ常駐
-- プレイヤー下部のコントローラーからもマウス操作で再生/一時停止/停止/シーク/音量調整が可能
-- qasyncを利用したQt Event Loopとasyncioの統合
+## Main Features
+- FastAPI-based HTTP+WHIP endpoints
+- On-demand stream resolution and instant playback using yt-dlp
+- Video/audio file upload and playback
+- Remote control API for play/pause/seek/volume adjustment, etc.
+- Built-in player using PySide6 + QtMultimedia, settings dialog, and system tray resident
+- Playback control (play/pause/stop/seek/volume) via mouse operations from the controller at the bottom of the player
+- Integration of Qt Event Loop and asyncio using qasync
 
-## 依存関係
-Python 3.10+ を想定しています。必要なパッケージは `requirements.txt` にまとめています。
+## Dependencies
+Python 3.10+ is assumed. Required packages are listed in `requirements.txt`.
 
 ```
 pip install -r requirements.txt
 ```
 
-## 実行方法
+## Running
 1. `python -m mtxcast.app`
-2. 初回起動時に設定ウィンドウが開くので、待受アドレスやポートなどを設定
-3. トレイアイコンから状態確認やアプリ終了が可能
+2. On first launch, a settings window will open where you can configure the listen address, port, etc.
+3. Status checking and app termination are available from the tray icon
 
-## APIエンドポイント概要
-- `POST /whip` : WHIPクライアント(OBS等)からのSDP Offerを受信し、ストリームを内部プレイヤーに接続
-- `POST /metadata` : `{ "source_url": "https://...", "start_time": 30 }` のようなメタデータで再生を開始
-- `POST /upload` : 動画・音声ファイルをアップロードして再生を開始
+## API Endpoints Overview
+- `POST /whip`: Receive SDP Offer from WHIP client (OBS, etc.) and connect stream to internal player
+- `POST /metadata`: Start playback with metadata like `{ "source_url": "https://...", "start_time": 30 }`
+- `POST /upload`: Upload video/audio file and start playback
 - `POST /control/play` / `pause` / `stop` / `seek` / `volume`
-- `GET /status` : 現在のストリーム種別や音量に加え、メタデータ再生時は `position` / `duration` / `is_seekable` を返すのでクライアント側で再生位置同期に利用可能
+- `GET /status`: Returns current stream type and volume, plus `position` / `duration` / `is_seekable` during metadata playback, which can be used for playback position synchronization on the client side
 
-詳細は `src/mtxcast/api_server.py` を参照してください。
+For details, see `src/mtxcast/api_server.py`.
 
-### API使用例
-`X-API-Token` を設定している場合は適宜ヘッダーを付与してください。
+### API Usage Examples
+If `X-API-Token` is configured, add the header as appropriate.
 
-#### メタデータ経由での再生開始
+#### Starting Playback via Metadata
 ```
 curl -X POST http://127.0.0.1:8080/metadata \
   -H "Content-Type: application/json" \
@@ -45,14 +45,14 @@ curl -X POST http://127.0.0.1:8080/metadata \
       }'
 ```
 
-#### ファイルアップロード
+#### File Upload
 ```
-# 動画・音声ファイルをアップロードして再生
+# Upload and play video/audio file
 curl -X POST http://127.0.0.1:8080/upload \
   -F "file=@/path/to/video.mp4" \
   -F "start_time=0.0"
 
-# レスポンス例
+# Response example
 {
   "stream_type": "METADATA",
   "title": "video.mp4",
@@ -61,24 +61,24 @@ curl -X POST http://127.0.0.1:8080/upload \
 }
 ```
 
-#### 再生コントロール
+#### Playback Control
 ```
-# 再生/一時停止/停止
+# Play/pause/stop
 curl -X POST http://127.0.0.1:8080/control/play
 curl -X POST http://127.0.0.1:8080/control/pause
 curl -X POST http://127.0.0.1:8080/control/stop
 
-# シーク(秒指定)
+# Seek (specify seconds)
 curl -X POST http://127.0.0.1:8080/control/seek \
   -H "Content-Type: application/json" \
   -d '{"position": 120}'
 
-# 音量(0.0〜1.0)
+# Volume (0.0 to 1.0)
 curl -X POST http://127.0.0.1:8080/control/volume \
   -H "Content-Type: application/json" \
   -d '{"volume": 0.5}'
 
-# 現在のステータス (position/duration はメタデータ再生時のみ有効)
+# Current status (position/duration is only valid during metadata playback)
 curl http://127.0.0.1:8080/status
 {
   "stream_type": "METADATA",
@@ -91,32 +91,32 @@ curl http://127.0.0.1:8080/status
 }
 ```
 
-#### WHIPエンドポイント
-OBSなどからWHIP出力を有効化し、エンドポイントURLを `http://<host>:8080/whip` に設定すると、SDP Offer/Answerが自動交換されて内部プレイヤーに接続されます。
+#### WHIP Endpoint
+Enable WHIP output from OBS, etc., and set the endpoint URL to `http://<host>:8080/whip`. SDP Offer/Answer will be automatically exchanged and connected to the internal player.
 
-## 使用例
+## Usage Examples
 
-### ブラウザ拡張機能からの使用
+### Using from Browser Extension
 
-1. **動画のキャスト**
-   - ウェブページ上の動画に表示される「📺 Cast」ボタンをクリック
-   - サーバー側で自動的に再生が開始されます
-   - 元動画とサーバー側の再生時間が自動同期されます
+1. **Casting Videos**
+   - Click the "📺 Cast" button that appears on videos on web pages
+   - Playback will automatically start on the server side
+   - Playback time is automatically synchronized between the original video and the server side
 
-2. **ファイルのアップロード**
-   - 拡張機能のポップアップを開く
-   - 「コントロール」タブの「ファイルアップロード」セクションでファイルを選択
-   - 「アップロードして再生」をクリック
-   - アップロード完了後、自動的に再生が開始されます
+2. **File Upload**
+   - Open the extension popup
+   - Select a file in the "File Upload" section of the "Control" tab
+   - Click "Upload and Play"
+   - After upload completes, playback will automatically start
 
-3. **画面ミラーリング**
-   - 拡張機能のポップアップから「ミラー開始」をクリック
-   - 画面共有の許可を選択
-   - WHIP経由でサーバー側にストリームが送信されます
+3. **Screen Mirroring**
+   - Click "Start Mirror" from the extension popup
+   - Select screen sharing permission
+   - Stream is sent to the server side via WHIP
 
-### コマンドラインからの使用
+### Using from Command Line
 
-#### YouTube動画の再生
+#### Playing YouTube Videos
 ```bash
 curl -X POST http://127.0.0.1:8080/metadata \
   -H "Content-Type: application/json" \
@@ -126,53 +126,53 @@ curl -X POST http://127.0.0.1:8080/metadata \
   }'
 ```
 
-#### ローカルファイルのアップロードと再生
+#### Uploading and Playing Local Files
 ```bash
-# 動画ファイルをアップロード
+# Upload video file
 curl -X POST http://127.0.0.1:8080/upload \
   -F "file=@/path/to/video.mp4" \
   -F "start_time=0.0"
 
-# 音声ファイルをアップロード
+# Upload audio file
 curl -X POST http://127.0.0.1:8080/upload \
   -F "file=@/path/to/audio.mp3" \
   -F "start_time=0.0"
 ```
 
-#### 再生制御の例
+#### Playback Control Examples
 ```bash
-# ステータス確認
+# Check status
 curl http://127.0.0.1:8080/status
 
-# 一時停止
+# Pause
 curl -X POST http://127.0.0.1:8080/control/pause
 
-# 再生再開
+# Resume playback
 curl -X POST http://127.0.0.1:8080/control/play
 
-# 30秒にシーク
+# Seek to 30 seconds
 curl -X POST http://127.0.0.1:8080/control/seek \
   -H "Content-Type: application/json" \
   -d '{"position": 30}'
 
-# 音量を50%に設定
+# Set volume to 50%
 curl -X POST http://127.0.0.1:8080/control/volume \
   -H "Content-Type: application/json" \
   -d '{"volume": 0.5}'
 
-# 停止
+# Stop
 curl -X POST http://127.0.0.1:8080/control/stop
 ```
 
-### Pythonスクリプトからの使用例
+### Usage Example from Python Script
 
 ```python
 import requests
 
-# サーバーURL
+# Server URL
 BASE_URL = "http://127.0.0.1:8080"
 
-# YouTube動画を再生
+# Play YouTube video
 response = requests.post(
     f"{BASE_URL}/metadata",
     json={
@@ -182,34 +182,34 @@ response = requests.post(
 )
 print(response.json())
 
-# ファイルをアップロード
+# Upload file
 with open("video.mp4", "rb") as f:
     files = {"file": f}
     data = {"start_time": "0.0"}
     response = requests.post(f"{BASE_URL}/upload", files=files, data=data)
     print(response.json())
 
-# ステータス確認
+# Check status
 status = requests.get(f"{BASE_URL}/status").json()
-print(f"現在の再生位置: {status.get('position')}秒")
-print(f"タイトル: {status.get('title')}")
+print(f"Current playback position: {status.get('position')} seconds")
+print(f"Title: {status.get('title')}")
 
-# シーク
+# Seek
 requests.post(
     f"{BASE_URL}/control/seek",
     json={"position": 60}
 )
 
-# 音量調整
+# Adjust volume
 requests.post(
     f"{BASE_URL}/control/volume",
     json={"volume": 0.8}
 )
 ```
 
-### APIトークンを使用する場合
+### Using API Token
 
-サーバー設定でAPIトークンを設定している場合、すべてのリクエストに `X-API-Token` ヘッダーを追加してください。
+If an API token is configured in the server settings, add the `X-API-Token` header to all requests.
 
 ```bash
 curl -X POST http://127.0.0.1:8080/metadata \
@@ -218,8 +218,5 @@ curl -X POST http://127.0.0.1:8080/metadata \
   -d '{"source_url": "https://...", "start_time": 0}'
 ```
 
-## ライセンス
-本プロジェクトは同一ルートにある `LICENSE` に従います。
-
-
-
+## License
+This project follows the `LICENSE` file in the same root directory.

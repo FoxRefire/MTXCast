@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,8 +11,8 @@
         <header>
             <h1>MTXCast</h1>
             <div class="tabs">
-                <button class="tab-button active" data-tab="control">コントロール</button>
-                <button class="tab-button" data-tab="settings">設定</button>
+                <button class="tab-button active" data-tab="control">Control</button>
+                <button class="tab-button" data-tab="settings">Settings</button>
             </div>
         </header>
 
@@ -20,11 +20,11 @@
         <div class="tab-content active" id="control-tab">
             <div class="status-section">
                 <div class="status-item">
-                    <span class="status-label">状態:</span>
-                    <span class="status-value" id="streamStatus">接続中...</span>
+                    <span class="status-label">Status:</span>
+                    <span class="status-value" id="streamStatus">Connecting...</span>
                 </div>
                 <div class="status-item" id="titleItem" style="display: none;">
-                    <span class="status-label">タイトル:</span>
+                    <span class="status-label">Title:</span>
                     <span class="status-value" id="streamTitle">-</span>
                 </div>
             </div>
@@ -42,7 +42,7 @@
             <div class="volume-section" id="volumeSection">
                 <div class="seek-control">
                     <div class="status-item" style="margin-bottom: 8px;">
-                        <span class="status-label">ボリューム:</span>
+                        <span class="status-label">Volume:</span>
                         <span class="status-value" id="volumeValue">100%</span>
                     </div>
                     <input type="range" id="volumeRange" min="0" max="100" step="1" value="100">
@@ -52,56 +52,56 @@
             <div class="control-buttons">
                 <button class="btn btn-primary" id="playButton">
                     <span class="icon">▶</span>
-                    <span>再生</span>
+                    <span>Play</span>
                 </button>
                 <button class="btn btn-secondary" id="pauseButton">
                     <span class="icon">⏸</span>
-                    <span>一時停止</span>
+                    <span>Pause</span>
                 </button>
                 <button class="btn btn-danger" id="stopButton">
                     <span class="icon">⏹</span>
-                    <span>停止</span>
+                    <span>Stop</span>
                 </button>
             </div>
 
             <div class="mirror-section">
-                <h3>画面ミラーリング</h3>
+                <h3>Screen Mirroring</h3>
                 <div class="control-buttons">
                     <button class="btn btn-primary" id="mirrorButton">
                         <span class="icon">🖥</span>
-                        <span>ミラー開始</span>
+                        <span>Start Mirror</span>
                     </button>
                     <button class="btn btn-secondary" id="mirrorStopButton" disabled>
                         <span class="icon">⏹</span>
-                        <span>ミラー停止</span>
+                        <span>Stop Mirror</span>
                     </button>
                 </div>
             </div>
 
             <div class="url-cast-section">
-                <h3>URLキャスト</h3>
+                <h3>URL Cast</h3>
                 <div class="form-group">
-                    <input type="text" id="castUrlInput" placeholder="URLを入力または現在のページを使用" class="url-input">
+                    <input type="text" id="castUrlInput" placeholder="Enter URL or use current page" class="url-input">
                 </div>
                 <div class="control-buttons">
                     <button class="btn btn-primary" id="castCurrentPageButton">
                         <span class="icon">📺</span>
-                        <span>現在のページをキャスト</span>
+                        <span>Cast Current Page</span>
                     </button>
                     <button class="btn btn-primary" id="castUrlButton">
                         <span class="icon">📺</span>
-                        <span>URLをキャスト</span>
+                        <span>Cast URL</span>
                     </button>
                 </div>
             </div>
 
             <div class="upload-section">
-                <h3>ファイルアップロード</h3>
+                <h3>File Upload</h3>
                 <div class="file-upload-area" id="fileUploadArea">
                     <input type="file" id="fileInput" accept="video/*,audio/*" style="display: none;">
                     <label for="fileInput" class="file-upload-label">
                         <span class="icon">📁</span>
-                        <span>ファイルを選択</span>
+                        <span>Select File</span>
                     </label>
                     <div class="file-info" id="fileInfo" style="display: none;">
                         <span id="fileName">-</span>
@@ -110,7 +110,7 @@
                 </div>
                 <button class="btn btn-primary" id="uploadButton" disabled>
                     <span class="icon">⬆</span>
-                    <span>アップロードして再生</span>
+                    <span>Upload and Play</span>
                 </button>
                 <div class="upload-progress" id="uploadProgress" style="display: none;">
                     <div class="progress-bar">
@@ -124,18 +124,18 @@
         <!-- Settings Tab -->
         <div class="tab-content" id="settings-tab">
             <div class="settings-section">
-                <h3>サーバー設定</h3>
+                <h3>Server Settings</h3>
                 <div class="form-group">
-                    <label for="serverHost">サーバーIP/ホスト名</label>
+                    <label for="serverHost">Server IP/Hostname</label>
                     <input type="text" id="serverHost" placeholder="127.0.0.1" value="127.0.0.1">
                 </div>
                 <div class="form-group">
-                    <label for="serverPort">ポート</label>
+                    <label for="serverPort">Port</label>
                     <input type="number" id="serverPort" placeholder="8080" value="8080" min="1" max="65535">
                 </div>
                 <button class="btn btn-primary" id="saveSettingsButton">
                     <span class="icon">💾</span>
-                    <span>設定を保存</span>
+                    <span>Save Settings</span>
                 </button>
                 <div class="status-message" id="settingsMessage"></div>
             </div>

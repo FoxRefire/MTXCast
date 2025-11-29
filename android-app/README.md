@@ -1,90 +1,90 @@
 # MTXCast Android Client
 
-MTXCastサーバーをAndroidデバイスから制御するためのアプリケーションです。
+An Android application for controlling the MTXCast server from Android devices.
 
-## 機能
+## Features
 
-- サーバーステータスの表示（リアルタイム更新）
-- 再生制御（再生/一時停止/停止）
-- 音量調整
-- シーク機能
-- URLからメディア再生（YouTube等）
-- ファイルアップロードと再生
-- サーバー設定（URL、APIトークン）
+- Server status display (real-time updates)
+- Playback control (play/pause/stop)
+- Volume adjustment
+- Seek functionality
+- Media playback from URL (YouTube, etc.)
+- File upload and playback
+- Server settings (URL, API token)
 
-## ビルド方法
+## Building
 
-### 前提条件
+### Prerequisites
 
-- Android Studio Hedgehog (2023.1.1) 以降
-- JDK 8 以降
-- Android SDK 24 以降
+- Android Studio Hedgehog (2023.1.1) or later
+- JDK 8 or later
+- Android SDK 24 or later
 
-### ビルド手順
+### Build Steps
 
-1. Android Studioでプロジェクトを開く
-2. `File > Sync Project with Gradle Files` を実行
-3. `Build > Make Project` でビルド
-4. デバイスまたはエミュレータで実行
+1. Open the project in Android Studio
+2. Execute `File > Sync Project with Gradle Files`
+3. Build with `Build > Make Project`
+4. Run on device or emulator
 
-### Gradleコマンドでビルド
+### Build with Gradle Command
 
 ```bash
 cd android-app
 ./gradlew assembleDebug
 ```
 
-APKファイルは `app/build/outputs/apk/debug/app-debug.apk` に生成されます。
+The APK file will be generated at `app/build/outputs/apk/debug/app-debug.apk`.
 
-## 使用方法
+## Usage
 
-### 初回設定
+### Initial Setup
 
-1. アプリを起動
-2. メニューから「Settings」を選択
-3. サーバーURLを入力（例: `http://192.168.1.100:8080`）
-4. APIトークンが設定されている場合は入力（オプション）
-5. 「Save」をタップ
+1. Launch the app
+2. Select "Settings" from the menu
+3. Enter the server URL (e.g., `http://192.168.1.100:8080`)
+4. Enter API token if configured (optional)
+5. Tap "Save"
 
-### 基本操作
+### Basic Operations
 
-- **ステータス**: 画面上部に現在のストリーム情報が表示されます（2秒ごとに自動更新）
-- **再生制御**: Play/Pause/Stopボタンで制御
-- **音量**: スライダーで音量調整（0-100%）
-- **シーク**: 「Seek」ボタンで位置を指定してシーク
-- **URL再生**: 「Play URL」ボタンでURLを入力して再生
-- **ファイルアップロード**: 「Upload File」ボタンでファイルを選択してアップロード
+- **Status**: Current stream information is displayed at the top of the screen (auto-updates every 2 seconds)
+- **Playback Control**: Control with Play/Pause/Stop buttons
+- **Volume**: Adjust volume with slider (0-100%)
+- **Seek**: Specify position and seek with "Seek" button
+- **URL Playback**: Enter URL with "Play URL" button to play
+- **File Upload**: Select file with "Upload File" button to upload
 
-### スクリーンミラーリング (MediaProjection + WHIP)
+### Screen Mirroring (MediaProjection + WHIP)
 
-1. 設定画面でサーバーURLおよび必要に応じてAPIトークンを登録します。WHIPエンドポイントは `http(s)://<サーバー>/whip` 固定です。
-2. メイン画面下部の「Screen Mirroring」カードで、エンドポイント表示が正しいことを確認します。
-3. 「Start Mirroring」をタップし、Androidの画面キャプチャ許可ダイアログで「今すぐ開始」を選択します。
-4. MediaProjectionで取得した画面映像がWebRTC経由でWHIPエンドポイントに送信され、サーバー側プレイヤーにミラーリングされます。
-5. 停止したい場合は同じボタンが「Stop Mirroring」に変わるのでタップしてください。セッション終了時にはWHIPリソースが自動削除されます。
+1. Register the server URL and API token (if needed) in the settings screen. The WHIP endpoint is fixed at `http(s)://<server>/whip`.
+2. On the main screen, verify that the endpoint display in the "Screen Mirroring" card at the bottom is correct.
+3. Tap "Start Mirroring" and select "Start now" in Android's screen capture permission dialog.
+4. The screen video captured via MediaProjection is sent to the WHIP endpoint via WebRTC and mirrored to the server-side player.
+5. To stop, tap the same button which will have changed to "Stop Mirroring". WHIP resources are automatically deleted when the session ends.
 
-> **補足**: ミラーリングはアプリ実行中のみ動作します。バックグラウンド実行や通知表示は行わないため、長時間配信する場合は画面がスリープしないようにご注意ください。
+> **Note**: Mirroring only works while the app is running. It does not run in the background or display notifications, so please be careful not to let the screen sleep during long streaming sessions.
 
-## 注意事項
+## Notes
 
-- サーバーとAndroidデバイスが同じネットワークに接続されている必要があります
-- HTTP通信を使用するため、HTTPSが必要な場合はサーバー側で設定してください
-- ファイルアップロードは大きなファイルの場合、時間がかかる場合があります
+- The server and Android device must be connected to the same network
+- HTTP communication is used; if HTTPS is required, configure it on the server side
+- File upload may take time for large files
 
-## トラブルシューティング
+## Troubleshooting
 
-### 接続エラーが発生する場合
+### Connection Errors
 
-1. サーバーが起動しているか確認
-2. サーバーURLが正しいか確認（`http://` または `https://` で始まる必要があります）
-3. ファイアウォール設定を確認
-4. 同じネットワークに接続されているか確認
+1. Check if the server is running
+2. Verify the server URL is correct (must start with `http://` or `https://`)
+3. Check firewall settings
+4. Verify connection to the same network
 
-### APIトークンエラーが発生する場合
+### API Token Errors
 
-1. サーバー側でAPIトークンが設定されているか確認
-2. 設定画面でAPIトークンが正しく入力されているか確認
+1. Check if API token is configured on the server side
+2. Verify the API token is correctly entered in the settings screen
 
-## ライセンス
+## License
 
-本プロジェクトは同一ルートにある `LICENSE` に従います。
+This project follows the `LICENSE` file in the same root directory.
