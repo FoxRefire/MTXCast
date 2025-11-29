@@ -64,6 +64,11 @@ chrome.runtime.onInstalled.addListener(() => {
         title: 'Cast this page',
         contexts: ['page', 'frame']
     });
+    chrome.contextMenus.create({
+        id: 'cast-link',
+        title: 'Cast this link',
+        contexts: ['link']
+    });
 });
 
 // Handle context menu clicks
@@ -75,6 +80,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                 console.log('[MTXCast] Page cast started:', tab.url);
             } else {
                 console.error('[MTXCast] Failed to cast page:', tab.url);
+            }
+        }
+    } else if (info.menuItemId === 'cast-link') {
+        if (info.linkUrl) {
+            const success = await castUrl(info.linkUrl, 0);
+            if (success) {
+                console.log('[MTXCast] Link cast started:', info.linkUrl);
+            } else {
+                console.error('[MTXCast] Failed to cast link:', info.linkUrl);
             }
         }
     }
