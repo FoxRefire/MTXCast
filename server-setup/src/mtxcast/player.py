@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import platform
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -14,6 +17,121 @@ from PySide6.QtMultimediaWidgets import QVideoWidget
 
 from .config import ServerConfig, save_config
 from .stream_manager import PlaybackMetrics, PlayerTransport
+
+LOGGER = logging.getLogger(__name__)
+
+
+class DisplayPowerManager:
+    """Manages display power settings to prevent screen off during playback"""
+    
+    def __init__(self) -> None:
+        self._inhibit_active = False
+        self._inhibit_process: subprocess.Popen[str] | None = None
+        self._is_linux = platform.system() == "Linux"
+        self._xset_available = self._check_xset_available()
+        self._systemd_inhibit_available = self._check_systemd_inhibit_available()
+    
+    def _check_xset_available(self) -> bool:
+        """Check if xset command is available"""
+        if not self._is_linux:
+            return False
+        try:
+            subprocess.run(["xset", "-q"], capture_output=True, check=True, timeout=2)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+    
+    def _check_systemd_inhibit_available(self) -> bool:
+        """Check if systemd-inhibit command is available"""
+        if not self._is_linux:
+            return False
+        try:
+            subprocess.run(["systemd-inhibit", "--version"], capture_output=True, check=True, timeout=2)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+    
+    def turn_on_display(self) -> None:
+        """Turn on the display"""
+        if not self._is_linux:
+            return
+        
+        if self._xset_available:
+            try:
+                # Force display on
+                subprocess.run(["xset", "dpms", "force", "on"], check=False, timeout=2)
+                LOGGER.debug("Display turned on via xset")
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+                LOGGER.warning("Failed to turn on display via xset: %s", e)
+    
+    def inhibit_screen_off(self) -> None:
+        """Inhibit screen from turning off"""
+        if not self._is_linux:
+            return
+        
+        if self._inhibit_active:
+            return
+        
+        if self._systemd_inhibit_available:
+            try:
+                # Use systemd-inhibit to prevent screen off
+                self._inhibit_process = subprocess.Popen(
+                    ["systemd-inhibit", "--what=idle:sleep", "--who=MTXCast", "--why=Video playback in progress", "sleep", "infinity"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                self._inhibit_active = True
+                LOGGER.info("Screen off inhibition activated via systemd-inhibit")
+                return
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                LOGGER.warning("Failed to use systemd-inhibit: %s", e)
+        
+        if self._xset_available:
+            try:
+                # Disable screen saver and DPMS
+                subprocess.run(["xset", "s", "off"], check=False, timeout=2)
+                subprocess.run(["xset", "-dpms"], check=False, timeout=2)
+                subprocess.run(["xset", "s", "noblank"], check=False, timeout=2)
+                self._inhibit_active = True
+                LOGGER.info("Screen off inhibition activated via xset")
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+                LOGGER.warning("Failed to inhibit screen off via xset: %s", e)
+    
+    def release_screen_off_inhibition(self) -> None:
+        """Release screen off inhibition"""
+        if not self._is_linux:
+            return
+        
+        if not self._inhibit_active:
+            return
+        
+        if self._inhibit_process is not None:
+            try:
+                self._inhibit_process.terminate()
+                self._inhibit_process.wait(timeout=2)
+                self._inhibit_process = None
+                LOGGER.info("Screen off inhibition released (systemd-inhibit)")
+            except subprocess.TimeoutExpired:
+                try:
+                    self._inhibit_process.kill()
+                    self._inhibit_process.wait()
+                    self._inhibit_process = None
+                except Exception as e:
+                    LOGGER.warning("Failed to kill inhibit process: %s", e)
+            except Exception as e:
+                LOGGER.warning("Failed to release systemd-inhibit: %s", e)
+        
+        if self._xset_available:
+            try:
+                # Re-enable screen saver and DPMS
+                subprocess.run(["xset", "s", "on"], check=False, timeout=2)
+                subprocess.run(["xset", "+dpms"], check=False, timeout=2)
+                subprocess.run(["xset", "s", "reset"], check=False, timeout=2)
+                LOGGER.info("Screen off inhibition released (xset)")
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+                LOGGER.warning("Failed to release screen off inhibition via xset: %s", e)
+        
+        self._inhibit_active = False
 
 
 class VideoCanvas(QtWidgets.QLabel):
@@ -484,6 +602,7 @@ class PlayerBackend(QtCore.QObject):
         self._player.setAudioOutput(self._audio)
         self._player.setVideoOutput(window.video_widget())
         self._webrtc_session = WebRTCSession(window.canvas())
+        self._display_power = DisplayPowerManager()
         self._volume = 0.8
         self._audio.setVolume(self._volume)
         self._window.set_volume_slider(self._volume)
@@ -547,6 +666,10 @@ class PlayerBackend(QtCore.QObject):
         except asyncio.TimeoutError:
             logger.warning("Media buffering timeout, starting playback anyway")
         
+        # Turn on display and inhibit screen off when playback starts
+        self._display_power.turn_on_display()
+        self._display_power.inhibit_screen_off()
+        
         # Start playback after buffering
         self._player.play()
         # Seek will be applied in _on_media_status_changed when media is ready
@@ -561,6 +684,11 @@ class PlayerBackend(QtCore.QObject):
         self._mode = "whip"
         self._current_source_url = None
         self._pending_seek = None
+        
+        # Turn on display and inhibit screen off when WebRTC playback starts
+        self._display_power.turn_on_display()
+        self._display_power.inhibit_screen_off()
+        
         self._window.show_player(use_webrtc=True)
         self._window.update_progress(None, None, False)
 
@@ -568,6 +696,9 @@ class PlayerBackend(QtCore.QObject):
         self._player.pause()
 
     async def resume(self) -> None:
+        # Turn on display and inhibit screen off when resuming playback
+        self._display_power.turn_on_display()
+        self._display_power.inhibit_screen_off()
         self._player.play()
 
     async def seek(self, position: float) -> None:
@@ -603,6 +734,10 @@ class PlayerBackend(QtCore.QObject):
     async def stop(self) -> None:
         self._player.stop()
         await self._webrtc_session.stop()
+        
+        # Release screen off inhibition when playback stops
+        self._display_power.release_screen_off_inhibition()
+        
         self._mode = "idle"
         self._current_source_url = None
         self._pending_seek = None
