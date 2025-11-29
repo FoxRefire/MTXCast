@@ -143,6 +143,19 @@ async function updateStatus() {
     } else {
         document.getElementById('seekSection').style.display = 'none';
     }
+    
+    // Update volume control
+    if (status.volume !== undefined) {
+        const volumePercent = Math.round(status.volume * 100);
+        const volumeRange = document.getElementById('volumeRange');
+        const volumeValue = document.getElementById('volumeValue');
+        
+        // Only update if user is not currently changing volume
+        if (!isUserChangingVolume) {
+            volumeRange.value = volumePercent;
+        }
+        volumeValue.textContent = `${volumePercent}%`;
+    }
 }
 
 // Tab switching
@@ -175,6 +188,32 @@ document.getElementById('seekRange').addEventListener('input', async (e) => {
         });
     } catch (error) {
         console.error('Failed to seek:', error);
+    }
+});
+
+// Volume range input
+let isUserChangingVolume = false;
+document.getElementById('volumeRange').addEventListener('input', async (e) => {
+    const volumePercent = parseInt(e.target.value);
+    document.getElementById('volumeValue').textContent = `${volumePercent}%`;
+    isUserChangingVolume = true;
+    
+    try {
+        const volume = volumePercent / 100.0; // Convert to 0.0-1.0 range
+        await fetch(`${getServerUrl()}/control/volume`, {
+            method: 'POST',
+            body: JSON.stringify({ volume: volume }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+    } catch (error) {
+        console.error('Failed to set volume:', error);
+    } finally {
+        // Reset flag after a short delay to allow status update
+        setTimeout(() => {
+            isUserChangingVolume = false;
+        }, 500);
     }
 });
 
