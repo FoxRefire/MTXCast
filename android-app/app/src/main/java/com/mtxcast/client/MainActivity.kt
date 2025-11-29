@@ -1,6 +1,9 @@
 package com.mtxcast.client
 
+import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -10,17 +13,23 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.mtxcast.client.api.ApiClient
 import com.mtxcast.client.api.StatusResponse
 import com.mtxcast.client.databinding.ActivityMainBinding
-import kotlinx.coroutines.launch
+import com.mtxcast.client.mirror.ScreenMirrorManager
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var settingsManager: SettingsManager
+    private lateinit var mediaProjectionManager: MediaProjectionManager
+    private lateinit var screenMirrorManager: ScreenMirrorManager
     private var apiToken: String? = null
     private var serverUrl: String = "http://127.0.0.1:8080"
     private var statusUpdateJob: kotlinx.coroutines.Job? = null
@@ -32,21 +41,38 @@ class MainActivity : AppCompatActivity() {
         uri?.let { uploadFile(it) }
     }
 
+    private val screenCaptureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            startMirrorSession(result.data!!)
+        } else {
+            Toast.makeText(this, getString(R.string.mirror_permission_denied), Toast.LENGTH_SHORT).show()
+            updateMirrorUi(screenMirrorManager.currentState())
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         settingsManager = SettingsManager(this)
+        screenMirrorManager = ScreenMirrorManager(applicationContext)
+        mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+
         loadSettings()
 
         setupUI()
+        observeMirrorState()
+        updateMirrorUi(screenMirrorManager.currentState())
         startStatusUpdates()
     }
 
     private fun loadSettings() {
         serverUrl = settingsManager.serverUrl
         apiToken = settingsManager.apiToken
+        updateMirrorEndpoint()
     }
 
     private fun setupUI() {
@@ -97,6 +123,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         )
+        binding.buttonMirror.setOnClickListener { handleMirrorToggle() }
     }
 
     private fun startStatusUpdates() {
@@ -380,6 +407,74 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
+    private fun observeMirrorState() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                screenMirrorManager.state.collectLatest { state ->
+                    updateMirrorUi(state)
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                screenMirrorManager.errors.collectLatest { message ->
+                    showError("Mirror: $message")
+                    updateMirrorUi(screenMirrorManager.currentState())
+                }
+            }
+        }
+    }
+
+    private fun handleMirrorToggle() {
+        when (screenMirrorManager.currentState()) {
+            ScreenMirrorManager.State.IDLE -> requestScreenCapture()
+            ScreenMirrorManager.State.STARTING,
+            ScreenMirrorManager.State.RUNNING -> screenMirrorManager.stop()
+        }
+    }
+
+    private fun requestScreenCapture() {
+        val intent = mediaProjectionManager.createScreenCaptureIntent()
+        screenCaptureLauncher.launch(intent)
+    }
+
+    private fun startMirrorSession(permissionData: Intent) {
+        if (serverUrl.isBlank()) {
+            showError("Server URL cannot be empty")
+            return
+        }
+        screenMirrorManager.start(serverUrl, apiToken, permissionData)
+    }
+
+    private fun updateMirrorUi(state: ScreenMirrorManager.State) {
+        when (state) {
+            ScreenMirrorManager.State.IDLE -> {
+                binding.buttonMirror.text = getString(R.string.start_mirroring)
+                binding.buttonMirror.isEnabled = true
+                binding.textMirrorStatus.text = getString(R.string.mirror_status_idle)
+            }
+            ScreenMirrorManager.State.STARTING -> {
+                binding.buttonMirror.text = getString(R.string.stop_mirroring)
+                binding.buttonMirror.isEnabled = false
+                binding.textMirrorStatus.text = getString(R.string.mirror_status_starting)
+            }
+            ScreenMirrorManager.State.RUNNING -> {
+                binding.buttonMirror.text = getString(R.string.stop_mirroring)
+                binding.buttonMirror.isEnabled = true
+                binding.textMirrorStatus.text = getString(R.string.mirror_status_streaming)
+            }
+        }
+    }
+
+    private fun updateMirrorEndpoint() {
+        val endpoint = if (serverUrl.isBlank()) {
+            "N/A"
+        } else {
+            serverUrl.trimEnd('/') + "/whip"
+        }
+        binding.textMirrorEndpoint.text = getString(R.string.mirror_endpoint_label, endpoint)
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
         return true
@@ -404,5 +499,10 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         statusUpdateJob?.cancel()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        screenMirrorManager.release()
     }
 }

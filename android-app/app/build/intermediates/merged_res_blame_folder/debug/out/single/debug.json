@@ -1,34 +1,30 @@
 [
     {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/layout_activity_settings.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/layout/activity_settings.xml"
+        "merged": "com.mtxcast.client.app-merged_res-40:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.mtxcast.client.app-main-42:/mipmap-anydpi-v26/ic_launcher_round.xml"
     },
     {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/layout_dialog_play_url.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/layout/dialog_play_url.xml"
+        "merged": "com.mtxcast.client.app-merged_res-40:/menu_main_menu.xml.flat",
+        "source": "com.mtxcast.client.app-main-42:/menu/main_menu.xml"
+    },
+    {
+        "merged": "com.mtxcast.client.app-merged_res-40:/layout_dialog_play_url.xml.flat",
+        "source": "com.mtxcast.client.app-main-42:/layout/dialog_play_url.xml"
+    },
+    {
+        "merged": "com.mtxcast.client.app-merged_res-40:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.mtxcast.client.app-main-42:/drawable/ic_launcher_foreground.xml"
     },
     {
         "merged": "com.mtxcast.client.app-merged_res-40:/layout_activity_main.xml.flat",
         "source": "com.mtxcast.client.app-main-42:/layout/activity_main.xml"
     },
     {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/mipmap-anydpi-v26/ic_launcher_round.xml"
+        "merged": "com.mtxcast.client.app-merged_res-40:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.mtxcast.client.app-main-42:/mipmap-anydpi-v26/ic_launcher.xml"
     },
     {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/drawable/ic_launcher_foreground.xml"
-    },
-    {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/layout_activity_main.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/layout/activity_main.xml"
-    },
-    {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/menu_main_menu.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/menu/main_menu.xml"
-    },
-    {
-        "merged": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-merged_res-40:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "/home/user/.gradle/daemon/8.2/com.mtxcast.client.app-main-42:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "com.mtxcast.client.app-merged_res-40:/layout_activity_settings.xml.flat",
+        "source": "com.mtxcast.client.app-main-42:/layout/activity_settings.xml"
     }
 ]

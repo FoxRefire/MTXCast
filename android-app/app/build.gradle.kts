@@ -55,6 +55,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     
+    // WebRTC for WHIP publishing
+    implementation("io.github.webrtc-sdk:android:137.7151.04")
+    
     // Preferences
     implementation("androidx.preference:preference-ktx:1.2.1")
     

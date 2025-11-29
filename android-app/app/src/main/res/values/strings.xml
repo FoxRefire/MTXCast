@@ -30,4 +30,14 @@
     <string name="settings_saved">Settings saved</string>
     <string name="upload_file">Upload File</string>
     <string name="select_file">Select File</string>
+    <string name="screen_mirroring">Screen Mirroring</string>
+    <string name="start_mirroring">Start Mirroring</string>
+    <string name="stop_mirroring">Stop Mirroring</string>
+    <string name="mirror_status_idle">Status: Not streaming</string>
+    <string name="mirror_status_starting">Status: Preparing capture...</string>
+    <string name="mirror_status_streaming">Status: Streaming via WHIP</string>
+    <string name="mirror_endpoint_label">Endpoint: %1$s</string>
+    <string name="mirror_endpoint_placeholder">Endpoint: N/A</string>
+    <string name="mirror_hint">Mirrors the current screen to the MTXCast server via WHIP.</string>
+    <string name="mirror_permission_denied">Screen capture permission denied</string>
 </resources>
