@@ -20,7 +20,7 @@
     "background": {
         "scripts": ["background.js"]
     },
-    "permissions": ["storage"],
+    "permissions": ["storage", "contextMenus", "tabs"],
     "host_permissions": ["<all_urls>"],
     "browser_specific_settings": {
         "gecko": {

@@ -315,6 +315,26 @@ function stopSync() {
     syncState.lastServerSeekPosition = null;
     syncState.lastServerPosition = null;
     
+    // Clean up position updater
+    if (syncState.positionUpdater) {
+        window.removeEventListener('scroll', syncState.positionUpdater, true);
+        window.removeEventListener('resize', syncState.positionUpdater);
+        syncState.positionUpdater = null;
+    }
+    
+    // Clean up position interval
+    if (syncState.positionInterval) {
+        clearInterval(syncState.positionInterval);
+        syncState.positionInterval = null;
+    }
+    
+    // Remove button from DOM if it exists
+    if (syncState.castButton && syncState.castButton.parentNode) {
+        syncState.castButton.parentNode.removeChild(syncState.castButton);
+    }
+    syncState.castButton = null;
+    syncState.videoElementForButton = null;
+    
     // Update button state
     updateCastButton(false);
 
@@ -331,17 +351,21 @@ function updateCastButton(isCasting) {
         syncState.castButton.innerHTML = '⏹ Stop';
         syncState.castButton.title = 'Stop casting';
         syncState.castButton.style.backgroundColor = 'rgba(200, 0, 0, 0.7)';
+        // Always show button when casting
+        syncState.castButton.style.opacity = '1';
     } else {
         syncState.castButton.innerHTML = '📺 Cast';
         syncState.castButton.title = 'Cast this video';
         syncState.castButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        // Hide button when not casting (will show on hover)
+        syncState.castButton.style.opacity = '0';
     }
 }
 
 // Add cast button to video elements
 function addCastButtonToVideo(videoElement) {
     // Skip if button already exists
-    if (videoElement.parentElement.querySelector('.mtxcast-button')) {
+    if (document.querySelector('.mtxcast-button')) {
         return;
     }
 
@@ -351,28 +375,74 @@ function addCastButtonToVideo(videoElement) {
     castButton.innerHTML = '📺 Cast';
     castButton.title = 'Cast this video';
     
-    // Store button reference
+    // Store button reference and video element
     syncState.castButton = castButton;
+    syncState.videoElementForButton = videoElement;
+    
+    // Function to update button position based on video element
+    const updateButtonPosition = () => {
+        const rect = videoElement.getBoundingClientRect();
+        const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+        
+        castButton.style.left = `${rect.right - 120 + scrollX}px`;
+        castButton.style.top = `${rect.top + 10 + scrollY}px`;
+    };
     
     // Add styles
     castButton.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 10000;
-        background-color: rgba(0, 0, 0, 0.7);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 8px 12px;
-        font-size: 14px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background-color 0.2s;
+        position: absolute !important;
+        z-index: 2147483647 !important;
+        background-color: rgba(0, 0, 0, 0.7) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 4px !important;
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+        font-weight: bold !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        transition: opacity 0.3s, background-color 0.2s !important;
+        opacity: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
     `;
+    
+    // Initial position update
+    updateButtonPosition();
+    
+    // Update position on scroll and resize
+    const positionUpdater = () => {
+        if (syncState.castButton && syncState.videoElementForButton) {
+            updateButtonPosition();
+        }
+    };
+    window.addEventListener('scroll', positionUpdater, true);
+    window.addEventListener('resize', positionUpdater);
+    
+    // Store updater for cleanup
+    syncState.positionUpdater = positionUpdater;
 
-    // Hover effect
+    // Show button on hover (always visible when casting)
+    const showButton = () => {
+        if (!syncState.active) {
+            castButton.style.opacity = '1';
+        }
+    };
+
+    const hideButton = () => {
+        if (!syncState.active) {
+            castButton.style.opacity = '0';
+        }
+    };
+
+    // Show button when hovering over video or parent container
+    videoElement.addEventListener('mouseenter', showButton);
+    videoElement.addEventListener('mouseleave', hideButton);
+    
+    // Also show on button hover
     castButton.addEventListener('mouseenter', () => {
+        castButton.style.opacity = '1';
         if (syncState.active) {
             castButton.style.backgroundColor = 'rgba(200, 0, 0, 0.9)';
         } else {
@@ -380,6 +450,9 @@ function addCastButtonToVideo(videoElement) {
         }
     });
     castButton.addEventListener('mouseleave', () => {
+        if (!syncState.active) {
+            castButton.style.opacity = '0';
+        }
         if (syncState.active) {
             castButton.style.backgroundColor = 'rgba(200, 0, 0, 0.7)';
         } else {
@@ -387,10 +460,13 @@ function addCastButtonToVideo(videoElement) {
         }
     });
 
-    // Click handler
-    castButton.addEventListener('click', async (e) => {
+    // Click handler with multiple event types for reliability
+    const handleClick = async (e) => {
         e.stopPropagation();
         e.preventDefault();
+        e.stopImmediatePropagation();
+        
+        const targetVideo = syncState.videoElementForButton || videoElement;
         
         // If already casting, stop casting
         if (syncState.active) {
@@ -403,7 +479,7 @@ function addCastButtonToVideo(videoElement) {
             await stopCasting();
             
             // Remove casting state from video
-            videoElement.classList.remove('mtxcast-casting');
+            targetVideo.classList.remove('mtxcast-casting');
             
             // Update button
             updateCastButton(false);
@@ -414,18 +490,18 @@ function addCastButtonToVideo(videoElement) {
         
         // Start casting
         // Apply casting.css by adding a class to the video element
-        videoElement.classList.add('mtxcast-casting');
-        videoElement.pause();
+        targetVideo.classList.add('mtxcast-casting');
+        targetVideo.pause();
         
         console.log('[MTXCast] Cast button clicked');
-        console.log('[MTXCast] Video element:', videoElement);
-        console.log('[MTXCast] Video source:', videoElement.src || videoElement.currentSrc);
-        console.log('[MTXCast] Video duration:', videoElement.duration);
-        console.log('[MTXCast] Video current time:', videoElement.currentTime);
-        console.log('[MTXCast] Video paused:', videoElement.paused);
+        console.log('[MTXCast] Video element:', targetVideo);
+        console.log('[MTXCast] Video source:', targetVideo.src || targetVideo.currentSrc);
+        console.log('[MTXCast] Video duration:', targetVideo.duration);
+        console.log('[MTXCast] Video current time:', targetVideo.currentTime);
+        console.log('[MTXCast] Video paused:', targetVideo.paused);
         console.log('[MTXCast] Casting CSS applied');
 
-        let currentTime = videoElement.currentTime;
+        let currentTime = targetVideo.currentTime;
         let url = location.href;
         
         chrome.runtime.sendMessage({
@@ -435,20 +511,38 @@ function addCastButtonToVideo(videoElement) {
         });
 
         // Start synchronization
-        startSync(videoElement);
+        startSync(targetVideo);
         
         // Update button
         updateCastButton(true);
-    });
+    };
+    
+    castButton.addEventListener('click', handleClick, true);
+    castButton.addEventListener('mousedown', handleClick, true);
+    castButton.addEventListener('touchstart', handleClick, true);
 
-    // Make sure parent element has relative positioning
-    const parent = videoElement.parentElement;
-    if (parent && window.getComputedStyle(parent).position === 'static') {
-        parent.style.position = 'relative';
-    }
-
-    // Insert button into parent element
-    parent.insertBefore(castButton, videoElement.nextSibling);
+    // Insert button into document body for better z-index control
+    document.body.appendChild(castButton);
+    
+    // Update position periodically to handle dynamic layout changes
+    const positionInterval = setInterval(() => {
+        if (syncState.castButton && syncState.videoElementForButton) {
+            const rect = syncState.videoElementForButton.getBoundingClientRect();
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            
+            syncState.castButton.style.left = `${rect.right - 120 + scrollX}px`;
+            syncState.castButton.style.top = `${rect.top + 10 + scrollY}px`;
+        } else {
+            clearInterval(positionInterval);
+        }
+    }, 100);
+    
+    // Store interval for cleanup
+    syncState.positionInterval = positionInterval;
+    
+    // Initially hide the button
+    updateCastButton(false);
 }
 
 // Process all video elements on the page

@@ -36,6 +36,50 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
+// Cast URL function
+async function castUrl(url, startTime = 0) {
+    const serverUrl = `http://${serverHost}:${serverPort}`;
+    try {
+        const response = await fetch(`${serverUrl}/metadata`, {
+            method: "POST",
+            body: JSON.stringify({ source_url: url, start_time: startTime }),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return true;
+    } catch (error) {
+        console.error('[MTXCast] Failed to cast URL:', error);
+        return false;
+    }
+}
+
+// Create context menu
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: 'cast-current-page',
+        title: 'このページをキャスト',
+        contexts: ['page', 'frame']
+    });
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === 'cast-current-page') {
+        if (tab && tab.url) {
+            const success = await castUrl(tab.url, 0);
+            if (success) {
+                console.log('[MTXCast] Page cast started:', tab.url);
+            } else {
+                console.error('[MTXCast] Failed to cast page:', tab.url);
+            }
+        }
+    }
+});
+
 if(chrome.windows){
     chrome.action.onClicked.addListener(() => {
         chrome.windows.create({

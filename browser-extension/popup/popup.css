@@ -221,6 +221,7 @@ header h1 {
     border-radius: var(--border-radius);
     padding: 16px;
     border: 1px solid var(--border-color);
+    margin-bottom: 16px;
 }
 
 .mirror-section h3 {
@@ -228,6 +229,38 @@ header h1 {
     font-weight: 600;
     margin-bottom: 12px;
     color: var(--text-color);
+}
+
+.url-cast-section {
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+.url-cast-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-color);
+}
+
+.url-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-size: 14px;
+    transition: border-color 0.2s;
+    margin-bottom: 12px;
+}
+
+.url-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
 }
 
 .settings-section {

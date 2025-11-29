@@ -413,6 +413,123 @@ document.getElementById('uploadButton').addEventListener('click', async () => {
     }
 });
 
+// Cast URL function
+async function castUrl(url, startTime = 0) {
+    try {
+        const response = await fetch(`${getServerUrl()}/metadata`, {
+            method: "POST",
+            body: JSON.stringify({ source_url: url, start_time: startTime }),
+            headers: {
+                "Content-Type": "application/json"
+            }
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return true;
+    } catch (error) {
+        console.error('Failed to cast URL:', error);
+        return false;
+    }
+}
+
+// Get current tab URL
+async function getCurrentTabUrl() {
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0] && tabs[0].url) {
+            return tabs[0].url;
+        }
+        return null;
+    } catch (error) {
+        console.error('Failed to get current tab URL:', error);
+        return null;
+    }
+}
+
+// Cast current page button
+document.getElementById('castCurrentPageButton').addEventListener('click', async () => {
+    const button = document.getElementById('castCurrentPageButton');
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '<span class="icon">⏳</span><span>キャスト中...</span>';
+    
+    try {
+        const url = await getCurrentTabUrl();
+        if (!url) {
+            showMessage('現在のページのURLを取得できませんでした', 'error');
+            return;
+        }
+        
+        const success = await castUrl(url, 0);
+        if (success) {
+            showMessage('キャストを開始しました', 'success');
+            // Update input field with current URL
+            document.getElementById('castUrlInput').value = url;
+            // Update status
+            setTimeout(updateStatus, 500);
+        } else {
+            showMessage('キャストの開始に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('Error casting current page:', error);
+        showMessage('エラーが発生しました: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+});
+
+// Cast URL button
+document.getElementById('castUrlButton').addEventListener('click', async () => {
+    const button = document.getElementById('castUrlButton');
+    const input = document.getElementById('castUrlInput');
+    const url = input.value.trim();
+    
+    if (!url) {
+        showMessage('URLを入力してください', 'error');
+        return;
+    }
+    
+    // Validate URL
+    try {
+        new URL(url);
+    } catch (e) {
+        showMessage('有効なURLを入力してください', 'error');
+        return;
+    }
+    
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="icon">⏳</span><span>キャスト中...</span>';
+    
+    try {
+        const success = await castUrl(url, 0);
+        if (success) {
+            showMessage('キャストを開始しました', 'success');
+            // Update status
+            setTimeout(updateStatus, 500);
+        } else {
+            showMessage('キャストの開始に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('Error casting URL:', error);
+        showMessage('エラーが発生しました: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+});
+
+// Initialize current page URL in input field
+(async () => {
+    const url = await getCurrentTabUrl();
+    if (url) {
+        document.getElementById('castUrlInput').value = url;
+    }
+})();
+
 // Initialize
 (async () => {
     await loadSettings();
