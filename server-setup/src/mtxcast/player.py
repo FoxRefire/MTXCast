@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Optional
 
 from aiortc import RTCPeerConnection
@@ -300,6 +301,19 @@ class SettingsDialog(QtWidgets.QDialog):
         self.autoplay_check.setChecked(config.autoplay)
         self.fullscreen_check = QtWidgets.QCheckBox("Auto fullscreen")
         self.fullscreen_check.setChecked(config.auto_fullscreen)
+        
+        # HTTPS settings
+        self.https_check = QtWidgets.QCheckBox("Enable HTTPS")
+        self.https_check.setChecked(config.enable_https)
+        self.https_check.toggled.connect(self._on_https_toggled)
+        
+        self.cert_edit = QtWidgets.QLineEdit(config.https_cert or "")
+        self.cert_button = QtWidgets.QPushButton("Browse...")
+        self.cert_button.clicked.connect(lambda: self._browse_file(self.cert_edit, "Certificate File (*.crt *.pem)"))
+        
+        self.key_edit = QtWidgets.QLineEdit(config.https_key or "")
+        self.key_button = QtWidgets.QPushButton("Browse...")
+        self.key_button.clicked.connect(lambda: self._browse_file(self.key_edit, "Key File (*.key *.pem)"))
 
         form.addRow("Host", self.host_edit)
         form.addRow("Port", self.port_edit)
@@ -308,12 +322,48 @@ class SettingsDialog(QtWidgets.QDialog):
         form.addRow("Control endpoint", self.control_edit)
         form.addRow(self.autoplay_check)
         form.addRow(self.fullscreen_check)
+        
+        # HTTPS section
+        form.addRow(QtWidgets.QLabel("<b>HTTPS Settings</b>"))
+        form.addRow(self.https_check)
+        
+        cert_layout = QtWidgets.QHBoxLayout()
+        cert_layout.addWidget(self.cert_edit)
+        cert_layout.addWidget(self.cert_button)
+        form.addRow("Certificate file", cert_layout)
+        
+        key_layout = QtWidgets.QHBoxLayout()
+        key_layout.addWidget(self.key_edit)
+        key_layout.addWidget(self.key_button)
+        form.addRow("Key file", key_layout)
+        
+        self._on_https_toggled(config.enable_https)
 
         buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addWidget(buttons)
 
+    def _on_https_toggled(self, enabled: bool) -> None:
+        """Enable/disable HTTPS-related fields based on checkbox state"""
+        self.cert_edit.setEnabled(enabled)
+        self.cert_button.setEnabled(enabled)
+        self.key_edit.setEnabled(enabled)
+        self.key_button.setEnabled(enabled)
+    
+    def _browse_file(self, line_edit: QtWidgets.QLineEdit, filter_text: str) -> None:
+        """Open file dialog to select a file"""
+        current_path = line_edit.text().strip()
+        initial_dir = str(Path(current_path).parent) if current_path and Path(current_path).parent.exists() else str(Path.home())
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Select File",
+            initial_dir,
+            filter_text
+        )
+        if file_path:
+            line_edit.setText(file_path)
+    
     def apply(self) -> ServerConfig:
         self._config.host = self.host_edit.text().strip()
         self._config.port = int(self.port_edit.value())
@@ -322,6 +372,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self._config.control_endpoint = self.control_edit.text().strip()
         self._config.autoplay = self.autoplay_check.isChecked()
         self._config.auto_fullscreen = self.fullscreen_check.isChecked()
+        self._config.enable_https = self.https_check.isChecked()
+        self._config.https_cert = self.cert_edit.text().strip() or None
+        self._config.https_key = self.key_edit.text().strip() or None
         save_config(self._config)
         return self._config
 

@@ -19,15 +19,24 @@ LOGGER = logging.getLogger("mtxcast")
 
 
 async def _start_uvicorn(app, config: ServerConfig) -> None:
-    server = uvicorn.Server(
-        uvicorn.Config(
-            app,
-            host=config.host,
-            port=config.port,
-            loop="asyncio",
-            log_level="info",
-        )
+    server_config = uvicorn.Config(
+        app,
+        host=config.host,
+        port=config.port,
+        loop="asyncio",
+        log_level="info",
     )
+    
+    # Configure HTTPS if enabled
+    if config.enable_https:
+        if not config.https_cert or not config.https_key:
+            LOGGER.warning("HTTPS is enabled but certificate or key file is not specified. HTTPS will not be enabled.")
+        else:
+            server_config.ssl_keyfile = config.https_key
+            server_config.ssl_certfile = config.https_cert
+            LOGGER.info("HTTPS enabled with certificate: %s, key: %s", config.https_cert, config.https_key)
+    
+    server = uvicorn.Server(server_config)
     await server.serve()
 
 

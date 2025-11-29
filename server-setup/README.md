@@ -23,6 +23,31 @@ pip install -r requirements.txt
 2. On first launch, a settings window will open where you can configure the listen address, port, etc.
 3. Status checking and app termination are available from the tray icon
 
+## HTTPS Configuration
+
+The server supports HTTPS for secure connections. To enable HTTPS:
+
+1. **Obtain SSL Certificate and Key Files**
+   - You can use a self-signed certificate for testing, or obtain a certificate from a Certificate Authority (CA) for production use
+   - For self-signed certificates, you can generate them using OpenSSL:
+     ```bash
+     openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
+     ```
+
+2. **Configure HTTPS in Settings**
+   - Open the settings dialog from the system tray icon
+   - Check "Enable HTTPS"
+   - Click "Browse..." next to "Certificate file" and select your certificate file (`.crt` or `.pem`)
+   - Click "Browse..." next to "Key file" and select your private key file (`.key` or `.pem`)
+   - Click "OK" to save the settings
+
+3. **Restart the Server**
+   - After configuring HTTPS, restart the server for the changes to take effect
+   - The server will now listen on HTTPS instead of HTTP
+   - Update your API calls to use `https://` instead of `http://`
+
+**Note:** When HTTPS is enabled, all API endpoints will be accessible via HTTPS. Make sure to update client applications (browser extension, Android app, CLI client) to use the HTTPS URL.
+
 ## API Endpoints Overview
 - `POST /whip`: Receive SDP Offer from WHIP client (OBS, etc.) and connect stream to internal player
 - `POST /metadata`: Start playback with metadata like `{ "source_url": "https://...", "start_time": 30 }`
@@ -37,7 +62,16 @@ If `X-API-Token` is configured, add the header as appropriate.
 
 #### Starting Playback via Metadata
 ```
+# HTTP (default)
 curl -X POST http://127.0.0.1:8080/metadata \
+  -H "Content-Type: application/json" \
+  -d '{
+        "source_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "start_time": 15
+      }'
+
+# HTTPS (if enabled)
+curl -X POST https://127.0.0.1:8080/metadata \
   -H "Content-Type: application/json" \
   -d '{
         "source_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -92,7 +126,11 @@ curl http://127.0.0.1:8080/status
 ```
 
 #### WHIP Endpoint
-Enable WHIP output from OBS, etc., and set the endpoint URL to `http://<host>:8080/whip`. SDP Offer/Answer will be automatically exchanged and connected to the internal player.
+Enable WHIP output from OBS, etc., and set the endpoint URL to:
+- HTTP: `http://<host>:8080/whip`
+- HTTPS: `https://<host>:8080/whip` (if HTTPS is enabled)
+
+SDP Offer/Answer will be automatically exchanged and connected to the internal player.
 
 ## Usage Examples
 
