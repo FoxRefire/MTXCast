@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.mtxcast.client.app-mergeDebugResources-39:/layout/activity_main.xml",
+        "source": "com.mtxcast.client.app-main-42:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.mtxcast.client.app-mergeDebugResources-39:/layout/activity_settings.xml",
+        "source": "com.mtxcast.client.app-main-42:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "com.mtxcast.client.app-mergeDebugResources-39:/layout/dialog_play_url.xml",
+        "source": "com.mtxcast.client.app-main-42:/layout/dialog_play_url.xml"
+    }
+]

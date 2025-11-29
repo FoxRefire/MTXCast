@@ -1,0 +1,7 @@
+#Sat Nov 29 09:45:23 JST 2025
+base.0=/home/user/ドキュメント/GitHub/MTXCast/android-app/app/build/intermediates/dex/release/mergeDexRelease/classes.dex
+base.1=/home/user/ドキュメント/GitHub/MTXCast/android-app/app/build/intermediates/dex/release/mergeDexRelease/classes2.dex
+path.0=classes.dex
+path.1=classes2.dex
+renamed.0=classes.dex
+renamed.1=classes2.dex

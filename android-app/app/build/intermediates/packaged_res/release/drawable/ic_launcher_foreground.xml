@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background circle -->
+    <path
+        android:fillColor="#6200EE"
+        android:pathData="M54,0C24.3,0 0,24.3 0,54s24.3,54 54,54s54,-24.3 54,-54S83.7,0 54,0z" />
+    <!-- Play icon (triangle) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,32L38,76L70,54L38,32z" />
+    <!-- Cast symbol (small circles as paths) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M73,54 A3,3 0 0,1 79,54 A3,3 0 0,1 73,54z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M80,54 A4,4 0 0,1 88,54 A4,4 0 0,1 80,54z" />
+</vector>
