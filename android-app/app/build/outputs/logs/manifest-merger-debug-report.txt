@@ -104,11 +104,11 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/user/.gradle/caches/t
 	android:label
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:11:9-41
 	android:roundIcon
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:12:9-54
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:12:9-61
 	tools:targetApi
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:16:9-29
 	android:icon
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:10:9-43
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:10:9-56
 	android:allowBackup
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:9:9-35
 	android:theme

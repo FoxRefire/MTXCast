@@ -7,6 +7,7 @@ color purple_700
 color teal_200
 color teal_700
 color white
+drawable ic_launcher_foreground
 id buttonPause
 id buttonPlay
 id buttonPlayUrl
@@ -19,6 +20,7 @@ id editServerUrl
 id editStartTime
 id editUrl
 id menu_settings
+id seekBarPosition
 id seekBarVolume
 id textPlaying
 id textPosition
@@ -30,6 +32,8 @@ layout activity_main
 layout activity_settings
 layout dialog_play_url
 menu main_menu
+mipmap ic_launcher
+mipmap ic_launcher_round
 string api_token
 string api_token_hint
 string app_name

@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private var apiToken: String? = null
     private var serverUrl: String = "http://127.0.0.1:8080"
     private var statusUpdateJob: kotlinx.coroutines.Job? = null
+    private var isUserSeeking = false
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent()
@@ -65,6 +66,35 @@ class MainActivity : AppCompatActivity() {
                 }
                 override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {}
                 override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {}
+            }
+        )
+        binding.seekBarPosition.setOnSeekBarChangeListener(
+            object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: android.widget.SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser && isUserSeeking) {
+                        // Update position text while dragging
+                        val max = seekBar?.max ?: 1000
+                        val duration = binding.seekBarPosition.tag as? Double ?: 0.0
+                        if (duration > 0) {
+                            val position = (progress.toDouble() / max) * duration
+                            binding.textPosition.text = getString(R.string.position) + ": ${formatTime(position.toInt())} / ${formatTime(duration.toInt())}"
+                        }
+                    }
+                }
+                
+                override fun onStartTrackingTouch(seekBar: android.widget.SeekBar?) {
+                    isUserSeeking = true
+                }
+                
+                override fun onStopTrackingTouch(seekBar: android.widget.SeekBar?) {
+                    isUserSeeking = false
+                    val max = seekBar?.max ?: 1000
+                    val duration = binding.seekBarPosition.tag as? Double ?: 0.0
+                    if (duration > 0) {
+                        val position = (seekBar?.progress?.toDouble() ?: 0.0) / max * duration
+                        seek(position)
+                    }
+                }
             }
         )
     }
@@ -117,13 +147,25 @@ class MainActivity : AppCompatActivity() {
         binding.seekBarVolume.progress = volumePercent
         binding.textVolume.text = getString(R.string.volume) + ": ${volumePercent}%"
 
-        if (status.position != null && status.duration != null) {
-            val position = status.position.toInt()
-            val duration = status.duration.toInt()
-            binding.textPosition.text = getString(R.string.position) + ": ${formatTime(position)} / ${formatTime(duration)}"
+        if (status.position != null && status.duration != null && status.duration!! > 0) {
+            val position = status.position!!
+            val duration = status.duration!!
+            
+            // Update position text
+            binding.textPosition.text = getString(R.string.position) + ": ${formatTime(position.toInt())} / ${formatTime(duration.toInt())}"
             binding.textPosition.visibility = View.VISIBLE
+            
+            // Update seek bar only if user is not currently seeking
+            if (!isUserSeeking) {
+                binding.seekBarPosition.tag = duration
+                val max = binding.seekBarPosition.max
+                val progress = ((position / duration) * max).toInt().coerceIn(0, max)
+                binding.seekBarPosition.progress = progress
+            }
+            binding.seekBarPosition.visibility = View.VISIBLE
         } else {
             binding.textPosition.visibility = View.GONE
+            binding.seekBarPosition.visibility = View.GONE
         }
     }
 

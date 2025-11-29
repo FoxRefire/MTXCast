@@ -41,6 +41,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final Button buttonUpload;
 
   @NonNull
+  public final SeekBar seekBarPosition;
+
+  @NonNull
   public final SeekBar seekBarVolume;
 
   @NonNull
@@ -63,8 +66,8 @@ public final class ActivityMainBinding implements ViewBinding {
 
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView, @NonNull Button buttonPause,
       @NonNull Button buttonPlay, @NonNull Button buttonPlayUrl, @NonNull Button buttonSeek,
-      @NonNull Button buttonStop, @NonNull Button buttonUpload, @NonNull SeekBar seekBarVolume,
-      @NonNull TextView textPlaying, @NonNull TextView textPosition,
+      @NonNull Button buttonStop, @NonNull Button buttonUpload, @NonNull SeekBar seekBarPosition,
+      @NonNull SeekBar seekBarVolume, @NonNull TextView textPlaying, @NonNull TextView textPosition,
       @NonNull TextView textStreamType, @NonNull TextView textTitle, @NonNull TextView textVolume,
       @NonNull Toolbar toolbar) {
     this.rootView = rootView;
@@ -74,6 +77,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.buttonSeek = buttonSeek;
     this.buttonStop = buttonStop;
     this.buttonUpload = buttonUpload;
+    this.seekBarPosition = seekBarPosition;
     this.seekBarVolume = seekBarVolume;
     this.textPlaying = textPlaying;
     this.textPosition = textPosition;
@@ -146,6 +150,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.seekBarPosition;
+      SeekBar seekBarPosition = ViewBindings.findChildViewById(rootView, id);
+      if (seekBarPosition == null) {
+        break missingId;
+      }
+
       id = R.id.seekBarVolume;
       SeekBar seekBarVolume = ViewBindings.findChildViewById(rootView, id);
       if (seekBarVolume == null) {
@@ -189,8 +199,8 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, buttonPause, buttonPlay,
-          buttonPlayUrl, buttonSeek, buttonStop, buttonUpload, seekBarVolume, textPlaying,
-          textPosition, textStreamType, textTitle, textVolume, toolbar);
+          buttonPlayUrl, buttonSeek, buttonStop, buttonUpload, seekBarPosition, seekBarVolume,
+          textPlaying, textPosition, textStreamType, textTitle, textVolume, toolbar);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
