@@ -24,7 +24,10 @@
     "host_permissions": ["<all_urls>"],
     "browser_specific_settings": {
         "gecko": {
-            "id": "MTXCast@FoxRefire"
+            "id": "MTXCast@FoxRefire",
+            "data_collection_permissions": {
+                "required": ["none"]
+            }
         }
     }
 }
