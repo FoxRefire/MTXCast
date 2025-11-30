@@ -322,27 +322,15 @@ function stopSync() {
     syncState.lastServerSeekPosition = null;
     syncState.lastServerPosition = null;
     
-    // Clean up position updater
-    if (syncState.positionUpdater) {
-        window.removeEventListener('scroll', syncState.positionUpdater, true);
-        window.removeEventListener('resize', syncState.positionUpdater);
-        syncState.positionUpdater = null;
-    }
+    // Don't clean up position updater - button still needs position updates
+    // The position updater and interval will continue to work as long as
+    // syncState.castButton and syncState.videoElementForButton exist
     
-    // Clean up position interval
-    if (syncState.positionInterval) {
-        clearInterval(syncState.positionInterval);
-        syncState.positionInterval = null;
-    }
+    // Don't remove button from DOM - just update its state
+    // The button should remain visible for future casting
+    // Note: videoElementForButton is kept so the button can still reference the video
     
-    // Remove button from DOM if it exists
-    if (syncState.castButton && syncState.castButton.parentNode) {
-        syncState.castButton.parentNode.removeChild(syncState.castButton);
-    }
-    syncState.castButton = null;
-    syncState.videoElementForButton = null;
-    
-    // Update button state
+    // Update button state (will hide it, but keep it in DOM for hover to show)
     updateCastButton(false);
 
     console.log('[MTXCast] Synchronization stopped');
