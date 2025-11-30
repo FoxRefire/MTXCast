@@ -125,6 +125,11 @@ async function syncWithServer() {
         return;
     }
 
+    // Don't sync if user is currently seeking (highest priority check)
+    if (syncState.isAdjusting) {
+        return;
+    }
+
     // Don't sync if we recently sent a seek to server (cooldown period)
     const timeSinceLastSeek = Date.now() - syncState.lastServerSeekTime;
     if (timeSinceLastSeek < syncState.serverSeekCooldown) {
@@ -230,20 +235,28 @@ function startSync(videoElement) {
             const currentTime = videoElement.currentTime;
             console.log(`[MTXCast] User seek detected: ${currentTime.toFixed(2)}s`);
             
-            // Temporarily mark as adjusting to prevent sync interference
+            // Immediately mark as adjusting to prevent sync interference
+            // This must be set BEFORE any async operations to prevent race conditions
             syncState.isAdjusting = true;
+            
+            // Also immediately record seek time to prevent syncWithServer from running
+            syncState.lastServerSeekTime = Date.now();
+            syncState.lastServerSeekPosition = currentTime;
             
             // Send seek to server and wait for completion
             const success = await seekServer(currentTime);
             
             if (success) {
                 // Keep adjusting flag for a bit longer to ensure server processes the seek
+                // This prevents syncWithServer from overriding the user's seek
                 setTimeout(() => {
                     syncState.isAdjusting = false;
-                }, 500);
+                }, syncState.serverSeekCooldown);
             } else {
                 // Reset immediately on failure
                 syncState.isAdjusting = false;
+                syncState.lastServerSeekTime = 0;
+                syncState.lastServerSeekPosition = null;
             }
         }
     };
