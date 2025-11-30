@@ -25,6 +25,27 @@ function getServerUrl() {
     return `http://${settings.serverHost}:${settings.serverPort}`;
 }
 
+// API request helper - sends request via background script to avoid CORS issues
+async function apiRequest(endpoint, method = 'GET', body = null) {
+    try {
+        const result = await chrome.runtime.sendMessage({
+            type: 'apiRequest',
+            endpoint: endpoint,
+            method: method,
+            body: body
+        });
+        
+        if (result && result.success) {
+            return result.data;
+        } else {
+            throw new Error(result?.error || 'Unknown error');
+        }
+    } catch (error) {
+        console.error(`API request failed for ${endpoint}:`, error);
+        throw error;
+    }
+}
+
 // Load settings from storage
 async function loadSettings() {
     try {
@@ -89,11 +110,7 @@ function showMessage(message, type) {
 // Fetch server status
 async function fetchStatus() {
     try {
-        const response = await fetch(`${getServerUrl()}/status`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        return await response.json();
+        return await apiRequest('/status', 'GET');
     } catch (error) {
         console.error('Failed to fetch status:', error);
         return null;
@@ -179,13 +196,7 @@ document.getElementById('seekRange').addEventListener('input', async (e) => {
     document.getElementById('currentTime').textContent = formatTime(position);
     
     try {
-        await fetch(`${getServerUrl()}/control/seek`, {
-            method: 'POST',
-            body: JSON.stringify({ position: position }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        await apiRequest('/control/seek', 'POST', { position: position });
     } catch (error) {
         console.error('Failed to seek:', error);
     }
@@ -200,13 +211,7 @@ document.getElementById('volumeRange').addEventListener('input', async (e) => {
     
     try {
         const volume = volumePercent / 100.0; // Convert to 0.0-1.0 range
-        await fetch(`${getServerUrl()}/control/volume`, {
-            method: 'POST',
-            body: JSON.stringify({ volume: volume }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        await apiRequest('/control/volume', 'POST', { volume: volume });
     } catch (error) {
         console.error('Failed to set volume:', error);
     } finally {
@@ -220,12 +225,7 @@ document.getElementById('volumeRange').addEventListener('input', async (e) => {
 // Control buttons
 document.getElementById('playButton').addEventListener('click', async () => {
     try {
-        await fetch(`${getServerUrl()}/control/play`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        await apiRequest('/control/play', 'POST');
     } catch (error) {
         console.error('Failed to play:', error);
     }
@@ -233,12 +233,7 @@ document.getElementById('playButton').addEventListener('click', async () => {
 
 document.getElementById('pauseButton').addEventListener('click', async () => {
     try {
-        await fetch(`${getServerUrl()}/control/pause`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        await apiRequest('/control/pause', 'POST');
     } catch (error) {
         console.error('Failed to pause:', error);
     }
@@ -246,12 +241,7 @@ document.getElementById('pauseButton').addEventListener('click', async () => {
 
 document.getElementById('stopButton').addEventListener('click', async () => {
     try {
-        await fetch(`${getServerUrl()}/control/stop`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        await apiRequest('/control/stop', 'POST');
     } catch (error) {
         console.error('Failed to stop:', error);
     }
@@ -455,16 +445,7 @@ document.getElementById('uploadButton').addEventListener('click', async () => {
 // Cast URL function
 async function castUrl(url, startTime = 0) {
     try {
-        const response = await fetch(`${getServerUrl()}/metadata`, {
-            method: "POST",
-            body: JSON.stringify({ source_url: url, start_time: startTime }),
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
+        await apiRequest('/metadata', 'POST', { source_url: url, start_time: startTime });
         return true;
     } catch (error) {
         console.error('Failed to cast URL:', error);

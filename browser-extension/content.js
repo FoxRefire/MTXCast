@@ -46,11 +46,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Get server status
 async function getServerStatus() {
     try {
-        const response = await fetch(`${getServerUrl()}/status`);
-        if (!response.ok) {
-            return null;
+        const result = await chrome.runtime.sendMessage({
+            type: 'apiRequest',
+            endpoint: '/status',
+            method: 'GET'
+        });
+        
+        if (result && result.success) {
+            return result.data;
         }
-        return await response.json();
+        return null;
     } catch (error) {
         console.error('[MTXCast] Failed to get server status:', error);
         return null;
@@ -60,20 +65,19 @@ async function getServerStatus() {
 // Stop casting on server
 async function stopCasting() {
     try {
-        const response = await fetch(`${getServerUrl()}/control/stop`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+        const result = await chrome.runtime.sendMessage({
+            type: 'apiRequest',
+            endpoint: '/control/stop',
+            method: 'POST'
         });
         
-        if (!response.ok) {
-            console.error(`[MTXCast] Server stop failed with status ${response.status}`);
+        if (result && result.success) {
+            console.log('[MTXCast] Server stop successful');
+            return true;
+        } else {
+            console.error(`[MTXCast] Server stop failed: ${result?.error || 'Unknown error'}`);
             return false;
         }
-        
-        console.log('[MTXCast] Server stop successful');
-        return true;
     } catch (error) {
         console.error('[MTXCast] Failed to stop server:', error);
         return false;
@@ -88,21 +92,23 @@ async function seekServer(position) {
     syncState.lastServerSeekPosition = position;
     
     try {
-        const response = await fetch(`${getServerUrl()}/control/seek`, {
+        const result = await chrome.runtime.sendMessage({
+            type: 'apiRequest',
+            endpoint: '/control/seek',
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ position: position })
+            body: { position: position }
         });
         
-        if (!response.ok) {
-            console.error(`[MTXCast] Server seek failed with status ${response.status}`);
+        if (result && result.success) {
+            console.log(`[MTXCast] Server seek successful: ${position.toFixed(2)}s`);
+            return true;
+        } else {
+            console.error(`[MTXCast] Server seek failed: ${result?.error || 'Unknown error'}`);
+            // Reset on error so sync can continue
+            syncState.lastServerSeekTime = 0;
+            syncState.lastServerSeekPosition = null;
             return false;
         }
-        
-        console.log(`[MTXCast] Server seek successful: ${position.toFixed(2)}s`);
-        return true;
     } catch (error) {
         console.error('[MTXCast] Failed to seek server:', error);
         // Reset on error so sync can continue
