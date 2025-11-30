@@ -13,7 +13,8 @@ const syncState = {
     serverHost: '127.0.0.1',
     serverPort: 8080,
     serverSeekCooldown: 3000, // milliseconds - ignore server sync after sending seek (increased for reliability)
-    castButton: null // Reference to the cast button element
+    castButton: null, // Reference to the cast button element
+    isHandlingClick: false // Flag to prevent multiple simultaneous click handlers
 };
 
 // Get server URL
@@ -472,55 +473,70 @@ function addCastButtonToVideo(videoElement) {
         e.preventDefault();
         e.stopImmediatePropagation();
         
-        const targetVideo = syncState.videoElementForButton || videoElement;
-        
-        // If already casting, stop casting
-        if (syncState.active) {
-            console.log('[MTXCast] Stop button clicked');
-            
-            // Stop synchronization
-            stopSync();
-            
-            // Stop server casting
-            await stopCasting();
-            
-            // Remove casting state from video
-            targetVideo.classList.remove('mtxcast-casting');
-            
-            // Update button
-            updateCastButton(false);
-            
-            console.log('[MTXCast] Casting stopped');
+        // Prevent multiple simultaneous click handlers
+        if (syncState.isHandlingClick) {
+            console.log('[MTXCast] Click handler already processing, ignoring duplicate event');
             return;
         }
         
-        // Start casting
-        // Apply casting.css by adding a class to the video element
-        targetVideo.classList.add('mtxcast-casting');
-        targetVideo.pause();
+        syncState.isHandlingClick = true;
         
-        console.log('[MTXCast] Cast button clicked');
-        console.log('[MTXCast] Video element:', targetVideo);
-        console.log('[MTXCast] Video source:', targetVideo.src || targetVideo.currentSrc);
-        console.log('[MTXCast] Video duration:', targetVideo.duration);
-        console.log('[MTXCast] Video current time:', targetVideo.currentTime);
-        console.log('[MTXCast] Video paused:', targetVideo.paused);
-        console.log('[MTXCast] Casting CSS applied');
+        try {
+            const targetVideo = syncState.videoElementForButton || videoElement;
+            
+            // If already casting, stop casting
+            if (syncState.active) {
+                console.log('[MTXCast] Stop button clicked');
+                
+                // Stop synchronization
+                stopSync();
+                
+                // Stop server casting
+                await stopCasting();
+                
+                // Remove casting state from video
+                targetVideo.classList.remove('mtxcast-casting');
+                
+                // Update button
+                updateCastButton(false);
+                
+                console.log('[MTXCast] Casting stopped');
+                return;
+            }
+            
+            // Start casting
+            // Apply casting.css by adding a class to the video element
+            targetVideo.classList.add('mtxcast-casting');
+            targetVideo.pause();
+            
+            console.log('[MTXCast] Cast button clicked');
+            console.log('[MTXCast] Video element:', targetVideo);
+            console.log('[MTXCast] Video source:', targetVideo.src || targetVideo.currentSrc);
+            console.log('[MTXCast] Video duration:', targetVideo.duration);
+            console.log('[MTXCast] Video current time:', targetVideo.currentTime);
+            console.log('[MTXCast] Video paused:', targetVideo.paused);
+            console.log('[MTXCast] Casting CSS applied');
 
-        let currentTime = targetVideo.currentTime;
-        let url = location.href;
-        
-        chrome.runtime.sendMessage({
-            type: 'cast',
-            currentTime: currentTime,
-            url: url
-        });
+            let currentTime = targetVideo.currentTime;
+            let url = location.href;
+            
+            chrome.runtime.sendMessage({
+                type: 'cast',
+                currentTime: currentTime,
+                url: url
+            });
 
-        // Start synchronization
-        startSync(targetVideo);
-        
-        // Update button
-        updateCastButton(true);
+            // Start synchronization
+            startSync(targetVideo);
+            
+            // Update button
+            updateCastButton(true);
+        } finally {
+            // Reset flag after a short delay to allow state to settle
+            setTimeout(() => {
+                syncState.isHandlingClick = false;
+            }, 300);
+        }
     };
     
     castButton.addEventListener('click', handleClick, true);
