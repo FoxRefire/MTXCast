@@ -70,7 +70,16 @@ class StreamManager:
     async def handle_metadata(self, payload: MetadataPayload) -> PlayerStatus:
         async with self._lock:
             resolved = await self._resolver.resolve(payload)
-            await self._player.play_url(resolved.playback_url, resolved.start_time, resolved.title)
+            # Check if we have separated streams
+            if resolved.video_url and resolved.audio_url:
+                await self._player.play_separated_streams(
+                    resolved.video_url, 
+                    resolved.audio_url, 
+                    resolved.start_time, 
+                    resolved.title
+                )
+            else:
+                await self._player.play_url(resolved.playback_url, resolved.start_time, resolved.title)
             self._status = PlayerStatus(
                 stream_type=StreamType.METADATA,
                 title=resolved.title,

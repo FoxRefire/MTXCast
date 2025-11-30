@@ -597,10 +597,15 @@ class PlayerBackend(QtCore.QObject):
     def __init__(self, window: PlayerWindow) -> None:
         super().__init__(window)
         self._window = window
-        self._player = QMediaPlayer()
+        self._player = QMediaPlayer()  # Main player (for video or combined streams)
         self._audio = QAudioOutput()
         self._player.setAudioOutput(self._audio)
         self._player.setVideoOutput(window.video_widget())
+        
+        # Separate audio player for separated streams
+        self._audio_player: QMediaPlayer | None = None
+        self._audio_output: QAudioOutput | None = None
+        
         self._webrtc_session = WebRTCSession(window.canvas())
         self._display_power = DisplayPowerManager()
         self._volume = 0.8
@@ -619,6 +624,7 @@ class PlayerBackend(QtCore.QObject):
         self._last_valid_position: float | None = None
         self._seek_applied: bool = False
         self._is_stopping: bool = False
+        self._using_separated_streams: bool = False
 
         self._retry_timer = QtCore.QTimer(self)
         self._retry_timer.setSingleShot(True)
@@ -642,6 +648,11 @@ class PlayerBackend(QtCore.QObject):
         self._seek_applied = False
         self._last_valid_position = None
         self._is_stopping = False
+        self._using_separated_streams = False
+        
+        # Re-enable audio output on video player (for single stream)
+        if self._player.audioOutput() is None:
+            self._player.setAudioOutput(self._audio)
         
         self._player.setSource(QtCore.QUrl(url))
         if start_time:
@@ -674,6 +685,106 @@ class PlayerBackend(QtCore.QObject):
         self._player.play()
         # Seek will be applied in _on_media_status_changed when media is ready
 
+    async def play_separated_streams(
+        self, 
+        video_url: str, 
+        audio_url: str, 
+        start_time: float = 0.0, 
+        title: str | None = None
+    ) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        await self._webrtc_session.stop()
+        
+        # Stop any existing playback
+        self._player.stop()
+        if self._audio_player:
+            self._audio_player.stop()
+        
+        # Create audio player if it doesn't exist
+        if self._audio_player is None:
+            self._audio_output = QAudioOutput()
+            self._audio_player = QMediaPlayer()
+            self._audio_player.setAudioOutput(self._audio_output)
+            self._audio_output.setVolume(self._volume)
+            
+            # Connect audio player signals
+            self._audio_player.errorOccurred.connect(self._handle_audio_player_error)
+            self._audio_player.mediaStatusChanged.connect(self._on_audio_media_status_changed)
+        
+        # Reset buffering event and flags
+        self._buffering_event = asyncio.Event()
+        self._is_seeking = False
+        self._seek_applied = False
+        self._last_valid_position = None
+        self._is_stopping = False
+        self._using_separated_streams = True
+        
+        # Set sources
+        self._player.setSource(QtCore.QUrl(video_url))
+        self._audio_player.setSource(QtCore.QUrl(audio_url))
+        
+        # Disable audio output on video player (we'll use audio player for sound)
+        self._player.setAudioOutput(None)
+        
+        if start_time:
+            self._pending_seek = start_time
+            self._last_valid_position = start_time
+        else:
+            self._pending_seek = None
+            self._last_valid_position = 0.0
+        
+        self._mode = "metadata"
+        self._current_source_url = f"{video_url}|{audio_url}"  # Combined identifier
+        self._current_title = title
+        self._retry_attempts = 0
+        self._retry_timer.stop()
+        self._window.show_player(use_webrtc=False)
+        self._window.update_progress(start_time or 0.0, None, True)
+        
+        # Wait for both streams to be loaded/buffered
+        try:
+            logger.info("Waiting for separated streams buffering...")
+            await asyncio.wait_for(self._buffering_event.wait(), timeout=self._buffering_timeout)
+            logger.info("Separated streams buffering completed, starting playback")
+        except asyncio.TimeoutError:
+            logger.warning("Separated streams buffering timeout, starting playback anyway")
+        
+        # Turn on display and inhibit screen off when playback starts
+        self._display_power.turn_on_display()
+        self._display_power.inhibit_screen_off()
+        
+        # Start both players simultaneously
+        self._player.play()
+        self._audio_player.play()
+        
+        # Seek will be applied in _on_media_status_changed when media is ready
+
+    def _handle_audio_player_error(self, error: QMediaPlayer.Error, error_string: str) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+        if error == QMediaPlayer.Error.NoError:  # type: ignore[attr-defined]
+            return
+        logger.error("Audio QMediaPlayer error (%s): %s", error, error_string)
+
+    def _on_audio_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Signal buffering completion when both players are ready
+        if status in (
+            QMediaPlayer.MediaStatus.BufferedMedia,
+            QMediaPlayer.MediaStatus.LoadedMedia,
+        ):
+            # Check if video player is also ready
+            if self._player.mediaStatus() in (
+                QMediaPlayer.MediaStatus.BufferedMedia,
+                QMediaPlayer.MediaStatus.LoadedMedia,
+            ):
+                if self._buffering_event:
+                    self._buffering_event.set()
+
     async def attach_webrtc_track(self, track: MediaStreamTrack, pc: RTCPeerConnection) -> None:
         import logging
         logger = logging.getLogger(__name__)
@@ -694,12 +805,16 @@ class PlayerBackend(QtCore.QObject):
 
     async def pause(self) -> None:
         self._player.pause()
+        if self._audio_player:
+            self._audio_player.pause()
 
     async def resume(self) -> None:
         # Turn on display and inhibit screen off when resuming playback
         self._display_power.turn_on_display()
         self._display_power.inhibit_screen_off()
         self._player.play()
+        if self._audio_player:
+            self._audio_player.play()
 
     async def seek(self, position: float) -> None:
         import logging
@@ -718,6 +833,10 @@ class PlayerBackend(QtCore.QObject):
         self._last_valid_position = position
         self._player.setPosition(int(position * 1000))
         
+        # Also seek audio player if using separated streams
+        if self._using_separated_streams and self._audio_player:
+            self._audio_player.setPosition(int(position * 1000))
+        
         # Reset seeking flag after a delay to allow position to stabilize
         # Use a longer delay to ensure position has time to update
         QtCore.QTimer.singleShot(1000, lambda: setattr(self, "_is_seeking", False))
@@ -725,14 +844,20 @@ class PlayerBackend(QtCore.QObject):
     async def set_volume(self, volume: float) -> None:
         self._volume = max(0.0, min(volume, 1.0))
         self._audio.setVolume(self._volume)
+        if self._audio_output:
+            self._audio_output.setVolume(self._volume)
         self._window.set_volume_slider(self._volume)
 
     def _on_volume_changed(self, value: float) -> None:
         self._volume = value
         self._audio.setVolume(self._volume)
+        if self._audio_output:
+            self._audio_output.setVolume(self._volume)
 
     async def stop(self) -> None:
         self._player.stop()
+        if self._audio_player:
+            self._audio_player.stop()
         await self._webrtc_session.stop()
         
         # Release screen off inhibition when playback stops
@@ -745,6 +870,7 @@ class PlayerBackend(QtCore.QObject):
         self._seek_applied = False
         self._last_valid_position = None
         self._is_stopping = False
+        self._using_separated_streams = False
         self._window.on_playback_stopped()
 
     def _handle_player_error(self, error, error_string: str) -> None:
@@ -772,6 +898,18 @@ class PlayerBackend(QtCore.QObject):
                 logger.error("Exceeded metadata playback retry attempts")
 
     def _on_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
+        # For separated streams, buffering completion is handled in _on_audio_media_status_changed
+        if self._using_separated_streams:
+            # Only apply seek when video player is ready (audio player will be handled separately)
+            if status in (
+                QMediaPlayer.MediaStatus.BufferedMedia,
+                QMediaPlayer.MediaStatus.LoadedMedia,
+            ):
+                if not self._seek_applied:
+                    self._apply_pending_seek()
+            return
+        
+        # For single stream
         if status in (
             QMediaPlayer.MediaStatus.BufferedMedia,
             QMediaPlayer.MediaStatus.LoadedMedia,
@@ -823,6 +961,11 @@ class PlayerBackend(QtCore.QObject):
             logger.info("Applying seek to position: %.2f seconds", target_position)
             self._last_valid_position = target_position
             self._player.setPosition(position_ms)
+            
+            # Also seek audio player if using separated streams
+            if self._using_separated_streams and self._audio_player:
+                self._audio_player.setPosition(position_ms)
+            
             self._pending_seek = None
             self._seek_applied = True
             # Reset seeking flag after a delay to allow position to stabilize
