@@ -70,6 +70,17 @@ class StreamManager:
     async def handle_metadata(self, payload: MetadataPayload) -> PlayerStatus:
         async with self._lock:
             resolved = await self._resolver.resolve(payload)
+            
+            # If file_path is set (e.g., for niconico), use file playback
+            # Note: We use _handle_file_impl here because we already hold the lock
+            if resolved.file_path:
+                LOGGER.info("Using downloaded file for playback: %s", resolved.file_path)
+                try:
+                    return await self._handle_file_impl(resolved.file_path, resolved.start_time, resolved.title)
+                except Exception as e:
+                    LOGGER.error("Error playing file %s: %s", resolved.file_path, e, exc_info=True)
+                    raise
+            
             # Check if we have separated streams
             if resolved.video_url and resolved.audio_url:
                 await self._player.play_separated_streams(
@@ -108,31 +119,53 @@ class StreamManager:
             return self._status
 
     async def handle_file(self, file_path: str, start_time: float = 0.0, title: str | None = None) -> PlayerStatus:
+        """Handle file playback with lock management"""
         async with self._lock:
-            from pathlib import Path
-            path = Path(file_path)
-            if not path.exists():
-                raise FileNotFoundError(f"File not found: {file_path}")
-            
-            # Use filename as title if not provided
-            if not title:
-                title = path.name
-            
-            # Convert file path to file:// URL for QMediaPlayer
-            file_url = path.as_uri()
-            
-            LOGGER.info(f"Playing file: {file_url} (start_time: {start_time})")
+            return await self._handle_file_impl(file_path, start_time, title)
+    
+    async def _handle_file_impl(self, file_path: str, start_time: float = 0.0, title: str | None = None) -> PlayerStatus:
+        """Internal implementation of file playback (assumes lock is already held)"""
+        from pathlib import Path
+        
+        LOGGER.info("handle_file called with path: %s", file_path)
+        
+        # Check file existence
+        path = Path(file_path)
+        if not path.exists():
+            abs_path = path.absolute()
+            LOGGER.error("File not found: %s (absolute: %s)", file_path, abs_path)
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        LOGGER.info("File exists: %s (size: %d bytes)", file_path, path.stat().st_size)
+        
+        # Use filename as title if not provided
+        if not title:
+            title = path.name
+        
+        # Convert file path to file:// URL for QMediaPlayer
+        # Use fromLocalFile for better Unicode support
+        from PySide6.QtCore import QUrl
+        file_url = QUrl.fromLocalFile(str(path.absolute())).toString()
+        
+        LOGGER.info("Playing file: %s (start_time: %.2f, title: %s)", file_url, start_time, title)
+        
+        try:
             await self._player.play_url(file_url, start_time, title)
-            self._status = PlayerStatus(
-                stream_type=StreamType.METADATA,
-                title=title,
-                is_playing=True,
-                volume=self._status.volume,
-                position=start_time,
-                duration=None,
-                is_seekable=True,
-            )
-            return self._status
+            LOGGER.info("play_url completed successfully")
+        except Exception as e:
+            LOGGER.error("Error in play_url: %s", e, exc_info=True)
+            raise
+        
+        self._status = PlayerStatus(
+            stream_type=StreamType.METADATA,
+            title=title,
+            is_playing=True,
+            volume=self._status.volume,
+            position=start_time,
+            duration=None,
+            is_seekable=True,
+        )
+        return self._status
 
     async def pause(self) -> PlayerStatus:
         async with self._lock:

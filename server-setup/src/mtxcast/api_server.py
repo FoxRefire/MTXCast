@@ -39,12 +39,21 @@ def build_api(manager: StreamManager, whip: WhipEndpoint, config: ServerConfig) 
 
     @app.post(config.metadata_endpoint, dependencies=[token_dep])
     async def post_metadata(payload: MetadataPayload) -> dict:
-        status_state = await manager.handle_metadata(payload)
-        return {
-            "stream_type": status_state.stream_type.name,
-            "title": status_state.title,
-            "is_playing": status_state.is_playing,
-        }
+        try:
+            LOGGER.info("Received metadata request for URL: %s", payload.source_url)
+            status_state = await manager.handle_metadata(payload)
+            LOGGER.info("Metadata playback started: %s (playing: %s)", status_state.title, status_state.is_playing)
+            return {
+                "stream_type": status_state.stream_type.name,
+                "title": status_state.title,
+                "is_playing": status_state.is_playing,
+            }
+        except Exception as e:
+            LOGGER.error("Error handling metadata request: %s", e, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process metadata request: {str(e)}"
+            )
 
     @app.post(config.whip_endpoint, response_class=PlainTextResponse, dependencies=[token_dep])
     async def post_whip_offer(

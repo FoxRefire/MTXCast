@@ -640,6 +640,8 @@ class PlayerBackend(QtCore.QObject):
         import logging
 
         logger = logging.getLogger(__name__)
+        logger.info("play_url called with URL: %s (start_time: %.2f, title: %s)", url, start_time, title)
+        
         await self._webrtc_session.stop()
         
         # Reset buffering event and flags
@@ -654,7 +656,10 @@ class PlayerBackend(QtCore.QObject):
         if self._player.audioOutput() is None:
             self._player.setAudioOutput(self._audio)
         
-        self._player.setSource(QtCore.QUrl(url))
+        qurl = QtCore.QUrl(url)
+        logger.info("Setting QMediaPlayer source: %s (isValid: %s, isLocalFile: %s)", 
+                   qurl.toString(), qurl.isValid(), qurl.isLocalFile())
+        self._player.setSource(qurl)
         if start_time:
             self._pending_seek = start_time
             self._last_valid_position = start_time
