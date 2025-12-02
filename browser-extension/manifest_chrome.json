@@ -1,7 +1,7 @@
 {
     "name": "MTXCast",
     "description": "Opensource chromecast alternative(client app for firefox)",
-    "version": "1.0",
+    "version": "1.1",
     "manifest_version": 3,
     "icons": {
         "128": "icon.png"
