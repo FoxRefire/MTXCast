@@ -58,21 +58,37 @@ class MetadataResolver:
         
         LOGGER.info("Downloading video to temporary file: %s", output_path)
         
-        # For niconico and other sites that may not support "best" format,
-        # don't specify format to let yt-dlp auto-select the best available format
-        # This avoids "Requested format is not available" errors
-        ydl_opts = {
-            "quiet": True,
-            "outtmpl": str(output_path),
-            # Don't specify format - let yt-dlp choose the best available format
-            # This is more reliable for sites like niconico
-        }
-        
         # Track files before download
         files_before = set(temp_dir.glob("*"))
         
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        # Try to exclude AV1 format first, but fallback to auto-select if format is not available
+        # This is important for sites like niconico that may not support format specifications
+        ydl_opts_with_format = {
+            "quiet": True,
+            "outtmpl": str(output_path),
+            # Exclude AV1 format: -vcodec:av01 means exclude video codec av01
+            "format": "best[vcodec!=av01][vcodec!^=av01]"
+        }
+        
+        try:
+            with YoutubeDL(ydl_opts_with_format) as ydl:
+                ydl.download([url])
+        except DownloadError as e:
+            # If format specification fails, fallback to auto-select (original behavior)
+            # This handles cases where the format filter is not supported or no matching format exists
+            if "Requested format is not available" in str(e) or "format is not available" in str(e).lower():
+                LOGGER.warning("Format specification failed, falling back to auto-select: %s", e)
+                ydl_opts_auto = {
+                    "quiet": True,
+                    "outtmpl": str(output_path),
+                    # Don't specify format - let yt-dlp choose the best available format
+                    # This is more reliable for sites like niconico
+                }
+                with YoutubeDL(ydl_opts_auto) as ydl:
+                    ydl.download([url])
+            else:
+                # Re-raise if it's a different error
+                raise
         
         # Find the newly created file
         files_after = set(temp_dir.glob("*"))
@@ -131,9 +147,26 @@ class MetadataResolver:
             
             # Let yt-dlp automatically select the best format
             # If it selects separated streams (bestvideo+bestaudio), we'll handle them separately
+            # Exclude AV1 format (av01 codec) as it may not be supported
             try:
-                with YoutubeDL({"quiet": True}) as ydl:
-                    info = ydl.extract_info(url, download=False)
+                ydl_opts = {
+                    "quiet": True,
+                    # Exclude AV1 format: -vcodec:av01 means exclude video codec av01
+                    "format": "bestvideo[vcodec!=av01][vcodec!^=av01]+bestaudio/best[vcodec!=av01][vcodec!^=av01]"
+                }
+                try:
+                    with YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                except DownloadError as e:
+                    # If format specification fails, fallback to auto-select and filter AV1 manually
+                    if "Requested format is not available" in str(e) or "format is not available" in str(e).lower():
+                        LOGGER.warning("Format specification failed, falling back to auto-select: %s", e)
+                        ydl_opts_auto = {"quiet": True}
+                        with YoutubeDL(ydl_opts_auto) as ydl:
+                            info = ydl.extract_info(url, download=False)
+                    else:
+                        # Re-raise if it's a different error
+                        raise
                 
                 # Log extracted info for debugging
                 LOGGER.debug("Extractor: %s", info.get("extractor") if info else None)
@@ -154,6 +187,12 @@ class MetadataResolver:
                     for fmt in requested_formats:
                         fmt_url = fmt.get("url") or fmt.get("manifest_url") or fmt.get("fragment_base_url")
                         if not fmt_url:
+                            continue
+                        
+                        # Exclude AV1 format
+                        vcodec = fmt.get("vcodec", "")
+                        if vcodec and (vcodec.startswith("av01") or "av01" in vcodec.lower()):
+                            LOGGER.debug("Skipping AV1 format: %s", fmt.get("format_id"))
                             continue
                         
                         has_video = fmt.get("vcodec") != "none"
@@ -196,6 +235,12 @@ class MetadataResolver:
                     if formats:
                         LOGGER.info("No direct URL, trying to find from formats list")
                         for fmt in formats:
+                            # Exclude AV1 format
+                            vcodec = fmt.get("vcodec", "")
+                            if vcodec and (vcodec.startswith("av01") or "av01" in vcodec.lower()):
+                                LOGGER.debug("Skipping AV1 format: %s", fmt.get("format_id"))
+                                continue
+                            
                             fmt_url = fmt.get("url") or fmt.get("manifest_url") or fmt.get("fragment_base_url")
                             if fmt_url:
                                 playback_url = fmt_url
