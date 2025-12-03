@@ -129,7 +129,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId === 'cast-current-page') {
         if (tab && tab.url) {
             const success = await castUrl(tab.url, 0);
