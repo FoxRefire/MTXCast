@@ -455,16 +455,7 @@ async function castUrl(url, startTime = 0) {
 
 // Get current tab URL
 async function getCurrentTabUrl() {
-    try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0] && tabs[0].url) {
-            return tabs[0].url;
-        }
-        return null;
-    } catch (error) {
-        console.error('Failed to get current tab URL:', error);
-        return null;
-    }
+    return new URLSearchParams(window.location.search).get('url');
 }
 
 // Cast current page button
@@ -546,7 +537,7 @@ document.getElementById('castUrlButton').addEventListener('click', async () => {
 (async () => {
     const url = await getCurrentTabUrl();
     if (url) {
-        document.getElementById('castUrlInput').value = url;
+        document.getElementById('castUrlInput').placeholder = url;
     }
 })();
 

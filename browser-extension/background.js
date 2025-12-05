@@ -151,17 +151,16 @@ chrome.contextMenus?.onClicked.addListener(async (info, tab) => {
     }
 });
 
-if(chrome.windows){
-    chrome.action.onClicked.addListener(() => {
+chrome.action.onClicked.addListener(tab => {
+    let url = encodeURIComponent(tab.url);
+    if(chrome.windows){
         chrome.windows.create({
-            url: "popup/popup.html",
+            url: "popup/popup.html?url=" + url,
             type: "popup",
             width: 380,
             height: 580
         });
-    });
-} else {
-    chrome.action.onClicked.addListener(() => {
-        chrome.tabs.create({url: "popup/popup.html"})
-    })
-}
+    } else {
+        chrome.tabs.create({url: "popup/popup.html?url=" + url})
+    }
+});
