@@ -613,8 +613,11 @@ class PlayerBackend(QtCore.QObject):
         self._window.set_volume_slider(self._volume)
         self._mode: str = "idle"  # "metadata" or "whip"
         self._current_source_url: str | None = None
+        self._current_video_url: str | None = None
+        self._current_audio_url: str | None = None
         self._current_title: str | None = None
         self._retry_attempts = 0
+        self._audio_retry_attempts = 0
         self._max_retries = 3
         self._pending_seek: float | None = None
         self._current_duration: float | None = None
@@ -629,6 +632,10 @@ class PlayerBackend(QtCore.QObject):
         self._retry_timer = QtCore.QTimer(self)
         self._retry_timer.setSingleShot(True)
         self._retry_timer.timeout.connect(self._retry_metadata_playback)
+        
+        self._audio_retry_timer = QtCore.QTimer(self)
+        self._audio_retry_timer.setSingleShot(True)
+        self._audio_retry_timer.timeout.connect(self._retry_audio_playback)
 
         window.volume_changed.connect(self._on_volume_changed)
         self._player.errorOccurred.connect(self._handle_player_error)
@@ -668,9 +675,13 @@ class PlayerBackend(QtCore.QObject):
             self._last_valid_position = 0.0
         self._mode = "metadata"
         self._current_source_url = url
+        self._current_video_url = None
+        self._current_audio_url = None
         self._current_title = title
         self._retry_attempts = 0
+        self._audio_retry_attempts = 0
         self._retry_timer.stop()
+        self._audio_retry_timer.stop()
         self._window.show_player(use_webrtc=False)
         self._window.update_progress(start_time or 0.0, None, True)
         
@@ -742,9 +753,13 @@ class PlayerBackend(QtCore.QObject):
         
         self._mode = "metadata"
         self._current_source_url = f"{video_url}|{audio_url}"  # Combined identifier
+        self._current_video_url = video_url
+        self._current_audio_url = audio_url
         self._current_title = title
         self._retry_attempts = 0
+        self._audio_retry_attempts = 0
         self._retry_timer.stop()
+        self._audio_retry_timer.stop()
         self._window.show_player(use_webrtc=False)
         self._window.update_progress(start_time or 0.0, None, True)
         
@@ -772,6 +787,37 @@ class PlayerBackend(QtCore.QObject):
         if error == QMediaPlayer.Error.NoError:  # type: ignore[attr-defined]
             return
         logger.error("Audio QMediaPlayer error (%s): %s", error, error_string)
+        
+        # Signal buffering event to prevent indefinite waiting
+        if self._buffering_event and not self._buffering_event.is_set():
+            self._buffering_event.set()
+        
+        # Retry audio playback for separated streams
+        if self._using_separated_streams and self._current_audio_url:
+            if self._audio_retry_attempts < self._max_retries:
+                self._audio_retry_attempts += 1
+                delay_ms = min(5000, 1000 * self._audio_retry_attempts)
+                logger.info(
+                    "Retrying audio playback in %sms (attempt %s/%s)",
+                    delay_ms,
+                    self._audio_retry_attempts,
+                    self._max_retries,
+                )
+                self._audio_retry_timer.start(delay_ms)
+            else:
+                logger.error("Exceeded audio playback retry attempts")
+                # If audio retries are exhausted, try to retry the entire stream
+                if self._mode == "metadata" and self._current_video_url and self._current_audio_url:
+                    if self._retry_attempts < self._max_retries:
+                        self._retry_attempts += 1
+                        delay_ms = min(5000, 1000 * self._retry_attempts)
+                        logger.info(
+                            "Retrying entire separated stream playback in %sms (attempt %s/%s)",
+                            delay_ms,
+                            self._retry_attempts,
+                            self._max_retries,
+                        )
+                        self._retry_timer.start(delay_ms)
 
     def _on_audio_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
         import logging
@@ -782,6 +828,10 @@ class PlayerBackend(QtCore.QObject):
             QMediaPlayer.MediaStatus.BufferedMedia,
             QMediaPlayer.MediaStatus.LoadedMedia,
         ):
+            # Reset retry attempts when audio player recovers
+            self._audio_retry_attempts = 0
+            self._audio_retry_timer.stop()
+            
             # Check if video player is also ready
             if self._player.mediaStatus() in (
                 QMediaPlayer.MediaStatus.BufferedMedia,
@@ -789,6 +839,29 @@ class PlayerBackend(QtCore.QObject):
             ):
                 if self._buffering_event:
                     self._buffering_event.set()
+        elif status == QMediaPlayer.MediaStatus.EndOfMedia:
+            # Audio stream ended prematurely - try to retry
+            if self._using_separated_streams and self._current_audio_url:
+                # Check if video is still playing - if so, retry audio only
+                video_status = self._player.mediaStatus()
+                if video_status not in (
+                    QMediaPlayer.MediaStatus.EndOfMedia,
+                    QMediaPlayer.MediaStatus.NoMedia,
+                    QMediaPlayer.MediaStatus.InvalidMedia,
+                ):
+                    logger.warning("Audio stream ended prematurely, attempting to retry")
+                    if self._audio_retry_attempts < self._max_retries:
+                        self._audio_retry_attempts += 1
+                        delay_ms = min(5000, 1000 * self._audio_retry_attempts)
+                        logger.info(
+                            "Retrying audio playback in %sms (attempt %s/%s)",
+                            delay_ms,
+                            self._audio_retry_attempts,
+                            self._max_retries,
+                        )
+                        self._audio_retry_timer.start(delay_ms)
+                    else:
+                        logger.error("Audio stream ended and retry attempts exhausted")
 
     async def attach_webrtc_track(self, track: MediaStreamTrack, pc: RTCPeerConnection) -> None:
         import logging
@@ -799,6 +872,8 @@ class PlayerBackend(QtCore.QObject):
         logger.info("PlayerBackend: Switching to WebRTC canvas")
         self._mode = "whip"
         self._current_source_url = None
+        self._current_video_url = None
+        self._current_audio_url = None
         self._pending_seek = None
         
         # Turn on display and inhibit screen off when WebRTC playback starts
@@ -870,6 +945,8 @@ class PlayerBackend(QtCore.QObject):
         
         self._mode = "idle"
         self._current_source_url = None
+        self._current_video_url = None
+        self._current_audio_url = None
         self._pending_seek = None
         self._is_seeking = False
         self._seek_applied = False
@@ -888,6 +965,24 @@ class PlayerBackend(QtCore.QObject):
         # Signal buffering event to prevent indefinite waiting
         if self._buffering_event and not self._buffering_event.is_set():
             self._buffering_event.set()
+        
+        # For separated streams, if video player errors, retry the entire stream
+        if self._using_separated_streams and self._current_video_url and self._current_audio_url:
+            if self._retry_attempts < self._max_retries:
+                self._retry_attempts += 1
+                delay_ms = min(5000, 1000 * self._retry_attempts)
+                logger.info(
+                    "Retrying separated stream playback in %sms (attempt %s/%s)",
+                    delay_ms,
+                    self._retry_attempts,
+                    self._max_retries,
+                )
+                self._retry_timer.start(delay_ms)
+            else:
+                logger.error("Exceeded separated stream playback retry attempts")
+            return
+        
+        # For single stream playback
         if self._mode == "metadata" and self._current_source_url:
             if self._retry_attempts < self._max_retries:
                 self._retry_attempts += 1
@@ -921,6 +1016,10 @@ class PlayerBackend(QtCore.QObject):
         ):
             self._retry_attempts = 0
             self._retry_timer.stop()
+            # Reset audio retry attempts when video player recovers
+            if self._using_separated_streams:
+                self._audio_retry_attempts = 0
+                self._audio_retry_timer.stop()
             # Signal that buffering is complete
             if self._buffering_event and not self._buffering_event.is_set():
                 self._buffering_event.set()
@@ -945,16 +1044,86 @@ class PlayerBackend(QtCore.QObject):
         logger = logging.getLogger(__name__)
         logger.info("Retrying metadata playback now")
         self._retry_timer.stop()
+        
+        # Reset retry attempts when starting retry (will be incremented again if it fails)
+        # This allows for multiple retry cycles
         position_ms = self._player.position()
         start_sec = position_ms / 1000 if position_ms > 0 else 0.0
+        
+        # Use last valid position if available
+        if self._last_valid_position is not None:
+            start_sec = self._last_valid_position
+        
         loop = asyncio.get_event_loop()
-        loop.create_task(
-            self.play_url(
-                self._current_source_url,
-                start_sec,
-                self._current_title,
+        
+        # Check if we're using separated streams
+        if self._using_separated_streams and self._current_video_url and self._current_audio_url:
+            # Reset audio retry attempts when retrying entire stream
+            self._audio_retry_attempts = 0
+            self._audio_retry_timer.stop()
+            loop.create_task(
+                self.play_separated_streams(
+                    self._current_video_url,
+                    self._current_audio_url,
+                    start_sec,
+                    self._current_title,
+                )
             )
-        )
+        else:
+            loop.create_task(
+                self.play_url(
+                    self._current_source_url,
+                    start_sec,
+                    self._current_title,
+                )
+            )
+    
+    def _retry_audio_playback(self) -> None:
+        """Retry only audio playback for separated streams"""
+        if not self._using_separated_streams or not self._current_audio_url or not self._audio_player:
+            return
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info("Retrying audio playback now")
+        self._audio_retry_timer.stop()
+        
+        # Get current position from video player (they should be synchronized)
+        position_ms = self._player.position()
+        start_sec = position_ms / 1000 if position_ms > 0 else 0.0
+        
+        # Use last valid position if available
+        if self._last_valid_position is not None:
+            start_sec = self._last_valid_position
+        
+        logger.info("Retrying audio playback at position: %.2f seconds", start_sec)
+        
+        # Stop current audio player
+        self._audio_player.stop()
+        
+        # Reset audio player source
+        self._audio_player.setSource(QtCore.QUrl(self._current_audio_url))
+        
+        # Wait a bit for buffering, then start playback
+        def start_audio_playback():
+            if self._audio_player and self._using_separated_streams:
+                # Check if media is loaded before seeking
+                status = self._audio_player.mediaStatus()
+                if status in (
+                    QMediaPlayer.MediaStatus.LoadedMedia,
+                    QMediaPlayer.MediaStatus.BufferedMedia,
+                ):
+                    if start_sec > 0:
+                        self._audio_player.setPosition(int(start_sec * 1000))
+                    self._audio_player.play()
+                    logger.info("Audio playback restarted at position: %.2f seconds", start_sec)
+                else:
+                    # Media not ready yet, wait a bit more
+                    logger.debug("Audio media not ready yet (status: %s), waiting...", status)
+                    QtCore.QTimer.singleShot(500, start_audio_playback)
+        
+        # Use QTimer to start playback after a short delay
+        QtCore.QTimer.singleShot(500, start_audio_playback)
 
     def _apply_pending_seek(self) -> None:
         if self._mode == "metadata" and self._pending_seek is not None:
