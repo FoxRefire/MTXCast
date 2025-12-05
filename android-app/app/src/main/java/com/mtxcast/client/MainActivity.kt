@@ -67,6 +67,9 @@ class MainActivity : AppCompatActivity() {
         observeMirrorState()
         updateMirrorUi(screenMirrorManager.currentState())
         startStatusUpdates()
+        
+        // Handle share intent
+        handleShareIntent(intent)
     }
 
     private fun loadSettings() {
@@ -499,6 +502,83 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         statusUpdateJob?.cancel()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    private fun handleShareIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND) {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            val sharedSubject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
+            
+            // Try to extract URL from shared text
+            val url = extractUrl(sharedText ?: sharedSubject ?: "")
+            
+            if (url != null) {
+                // Automatically cast the URL
+                playUrl(url, 0.0)
+                Toast.makeText(this, "Casting URL from share: $url", Toast.LENGTH_SHORT).show()
+            } else if (sharedText != null && sharedText.isNotEmpty()) {
+                // If no URL found, show dialog with pre-filled text
+                showPlayUrlDialogWithUrl(sharedText)
+            }
+        }
+    }
+    
+    private fun extractUrl(text: String?): String? {
+        if (text.isNullOrBlank()) return null
+        
+        // Try to find URL patterns
+        val urlPattern = android.util.Patterns.WEB_URL
+        val matcher = urlPattern.matcher(text)
+        
+        if (matcher.find()) {
+            var url = matcher.group()
+            // Ensure URL has a scheme
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "https://$url"
+            }
+            return url
+        }
+        
+        // Also check if the entire text is a URL
+        return try {
+            val uri = Uri.parse(text)
+            if (uri.scheme != null && (uri.scheme == "http" || uri.scheme == "https")) {
+                text
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    private fun showPlayUrlDialogWithUrl(url: String) {
+        val view = layoutInflater.inflate(R.layout.dialog_play_url, null)
+        val urlInput = view.findViewById<android.widget.EditText>(R.id.editUrl)
+        val startTimeInput = view.findViewById<android.widget.EditText>(R.id.editStartTime)
+        
+        urlInput.setText(url)
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.play_url))
+            .setView(view)
+            .setPositiveButton("Play") { _, _ ->
+                val finalUrl = urlInput.text.toString()
+                val startTime = startTimeInput.text.toString().toDoubleOrNull() ?: 0.0
+                if (finalUrl.isNotEmpty()) {
+                    playUrl(finalUrl, startTime)
+                } else {
+                    Toast.makeText(this, "URL cannot be empty", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onDestroy() {

@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-44:12
-INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-44:12
-INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-44:12
-INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-44:12
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-50:12
+INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-50:12
+INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-50:12
+INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:2:1-50:12
 MERGED from [androidx.databinding:viewbinding:8.2.0] /home/user/.gradle/caches/transforms-3/b84f43d62ca81a8b38dea5fd323d8e45/transformed/jetified-viewbinding-8.2.0/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] /home/user/.gradle/caches/transforms-3/184958b59b0b0fbc0694ac3308e227ed/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/user/.gradle/caches/transforms-3/415b44dba470347148fe7836a27170ec/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
@@ -84,8 +84,8 @@ ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main
 	android:name
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:8:22-91
 application
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:10:5-42:19
-INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:10:5-42:19
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:10:5-48:19
+INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:10:5-48:19
 MERGED from [com.google.android.material:material:1.11.0] /home/user/.gradle/caches/transforms-3/184958b59b0b0fbc0694ac3308e227ed/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /home/user/.gradle/caches/transforms-3/184958b59b0b0fbc0694ac3308e227ed/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/user/.gradle/caches/transforms-3/415b44dba470347148fe7836a27170ec/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -125,49 +125,65 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/user/.gradle/caches/t
 	android:usesCleartextTraffic
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:17:9-44
 activity#com.mtxcast.client.MainActivity
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:19:9-27:20
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:19:9-33:20
+	android:launchMode
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:22:13-43
 	android:exported
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:21:13-36
 	android:theme
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:22:13-55
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:23:13-55
 	android:name
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:20:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:23:13-26:29
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:24:13-27:29
 action#android.intent.action.MAIN
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:24:17-69
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:25:17-69
 	android:name
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:24:25-66
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:25:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:25:17-77
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:26:17-77
 	android:name
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:25:27-74
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:26:27-74
+intent-filter#action:name:android.intent.action.SEND+category:name:android.intent.category.DEFAULT+data:mimeType:text/plain
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:28:13-32:29
+action#android.intent.action.SEND
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:29:17-69
+	android:name
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:29:25-66
+category#android.intent.category.DEFAULT
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:30:17-76
+	android:name
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:30:27-73
+data
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:31:17-55
+	android:mimeType
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:31:23-52
 activity#com.mtxcast.client.SettingsActivity
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:28:9-36:20
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:34:9-42:20
 	android:parentActivityName
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:32:13-55
-	android:label
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:31:13-45
-	android:exported
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:30:13-37
-	android:name
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:29:13-45
-meta-data#android.support.PARENT_ACTIVITY
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:33:13-35:49
-	android:value
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:35:17-46
-	android:name
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:34:17-63
-service#com.mtxcast.client.mirror.ScreenMirrorService
-ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:37:9-41:63
-	android:enabled
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:39:13-35
-	android:exported
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:40:13-37
-	android:foregroundServiceType
-		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:41:13-60
-	android:name
 		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:38:13-55
+	android:label
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:37:13-45
+	android:exported
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:36:13-37
+	android:name
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:35:13-45
+meta-data#android.support.PARENT_ACTIVITY
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:39:13-41:49
+	android:value
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:41:17-46
+	android:name
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:40:17-63
+service#com.mtxcast.client.mirror.ScreenMirrorService
+ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:43:9-47:63
+	android:enabled
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:45:13-35
+	android:exported
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:46:13-37
+	android:foregroundServiceType
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:47:13-60
+	android:name
+		ADDED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml:44:13-55
 uses-sdk
 INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/user/ドキュメント/GitHub/MTXCast/android-app/app/src/main/AndroidManifest.xml
