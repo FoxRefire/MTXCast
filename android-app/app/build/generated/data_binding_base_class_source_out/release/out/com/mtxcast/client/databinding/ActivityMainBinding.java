@@ -23,6 +23,9 @@ public final class ActivityMainBinding implements ViewBinding {
   private final CoordinatorLayout rootView;
 
   @NonNull
+  public final Button buttonMirror;
+
+  @NonNull
   public final Button buttonPause;
 
   @NonNull
@@ -41,7 +44,19 @@ public final class ActivityMainBinding implements ViewBinding {
   public final Button buttonUpload;
 
   @NonNull
+  public final SeekBar seekBarPosition;
+
+  @NonNull
   public final SeekBar seekBarVolume;
+
+  @NonNull
+  public final TextView textMirrorEndpoint;
+
+  @NonNull
+  public final TextView textMirrorHint;
+
+  @NonNull
+  public final TextView textMirrorStatus;
 
   @NonNull
   public final TextView textPlaying;
@@ -61,20 +76,27 @@ public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   public final Toolbar toolbar;
 
-  private ActivityMainBinding(@NonNull CoordinatorLayout rootView, @NonNull Button buttonPause,
-      @NonNull Button buttonPlay, @NonNull Button buttonPlayUrl, @NonNull Button buttonSeek,
-      @NonNull Button buttonStop, @NonNull Button buttonUpload, @NonNull SeekBar seekBarVolume,
-      @NonNull TextView textPlaying, @NonNull TextView textPosition,
-      @NonNull TextView textStreamType, @NonNull TextView textTitle, @NonNull TextView textVolume,
-      @NonNull Toolbar toolbar) {
+  private ActivityMainBinding(@NonNull CoordinatorLayout rootView, @NonNull Button buttonMirror,
+      @NonNull Button buttonPause, @NonNull Button buttonPlay, @NonNull Button buttonPlayUrl,
+      @NonNull Button buttonSeek, @NonNull Button buttonStop, @NonNull Button buttonUpload,
+      @NonNull SeekBar seekBarPosition, @NonNull SeekBar seekBarVolume,
+      @NonNull TextView textMirrorEndpoint, @NonNull TextView textMirrorHint,
+      @NonNull TextView textMirrorStatus, @NonNull TextView textPlaying,
+      @NonNull TextView textPosition, @NonNull TextView textStreamType, @NonNull TextView textTitle,
+      @NonNull TextView textVolume, @NonNull Toolbar toolbar) {
     this.rootView = rootView;
+    this.buttonMirror = buttonMirror;
     this.buttonPause = buttonPause;
     this.buttonPlay = buttonPlay;
     this.buttonPlayUrl = buttonPlayUrl;
     this.buttonSeek = buttonSeek;
     this.buttonStop = buttonStop;
     this.buttonUpload = buttonUpload;
+    this.seekBarPosition = seekBarPosition;
     this.seekBarVolume = seekBarVolume;
+    this.textMirrorEndpoint = textMirrorEndpoint;
+    this.textMirrorHint = textMirrorHint;
+    this.textMirrorStatus = textMirrorStatus;
     this.textPlaying = textPlaying;
     this.textPosition = textPosition;
     this.textStreamType = textStreamType;
@@ -110,6 +132,12 @@ public final class ActivityMainBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.buttonMirror;
+      Button buttonMirror = ViewBindings.findChildViewById(rootView, id);
+      if (buttonMirror == null) {
+        break missingId;
+      }
+
       id = R.id.buttonPause;
       Button buttonPause = ViewBindings.findChildViewById(rootView, id);
       if (buttonPause == null) {
@@ -146,9 +174,33 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.seekBarPosition;
+      SeekBar seekBarPosition = ViewBindings.findChildViewById(rootView, id);
+      if (seekBarPosition == null) {
+        break missingId;
+      }
+
       id = R.id.seekBarVolume;
       SeekBar seekBarVolume = ViewBindings.findChildViewById(rootView, id);
       if (seekBarVolume == null) {
+        break missingId;
+      }
+
+      id = R.id.textMirrorEndpoint;
+      TextView textMirrorEndpoint = ViewBindings.findChildViewById(rootView, id);
+      if (textMirrorEndpoint == null) {
+        break missingId;
+      }
+
+      id = R.id.textMirrorHint;
+      TextView textMirrorHint = ViewBindings.findChildViewById(rootView, id);
+      if (textMirrorHint == null) {
+        break missingId;
+      }
+
+      id = R.id.textMirrorStatus;
+      TextView textMirrorStatus = ViewBindings.findChildViewById(rootView, id);
+      if (textMirrorStatus == null) {
         break missingId;
       }
 
@@ -188,8 +240,9 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityMainBinding((CoordinatorLayout) rootView, buttonPause, buttonPlay,
-          buttonPlayUrl, buttonSeek, buttonStop, buttonUpload, seekBarVolume, textPlaying,
+      return new ActivityMainBinding((CoordinatorLayout) rootView, buttonMirror, buttonPause,
+          buttonPlay, buttonPlayUrl, buttonSeek, buttonStop, buttonUpload, seekBarPosition,
+          seekBarVolume, textMirrorEndpoint, textMirrorHint, textMirrorStatus, textPlaying,
           textPosition, textStreamType, textTitle, textVolume, toolbar);
     }
     String missingId = rootView.getResources().getResourceName(id);

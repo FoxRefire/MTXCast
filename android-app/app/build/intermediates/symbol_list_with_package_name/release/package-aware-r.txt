@@ -3262,6 +3262,7 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id buttonMirror
 id buttonPanel
 id buttonPause
 id buttonPlay
@@ -3570,6 +3571,7 @@ id search_mag_icon
 id search_plate
 id search_src_text
 id search_voice_btn
+id seekBarPosition
 id seekBarVolume
 id seekbar
 id seekbar_value
@@ -3633,6 +3635,9 @@ id tag_window_insets_animation_callback
 id text
 id text2
 id textEnd
+id textMirrorEndpoint
+id textMirrorHint
+id textMirrorStatus
 id textPlaying
 id textPosition
 id textSpacerNoButtons
@@ -4013,6 +4018,13 @@ string material_timepicker_minute
 string material_timepicker_pm
 string material_timepicker_select_time
 string material_timepicker_text_input_mode_description
+string mirror_endpoint_label
+string mirror_endpoint_placeholder
+string mirror_hint
+string mirror_permission_denied
+string mirror_status_idle
+string mirror_status_starting
+string mirror_status_streaming
 string mtrl_badge_numberless_content_description
 string mtrl_checkbox_button_icon_path_checked
 string mtrl_checkbox_button_icon_path_group_name
@@ -4089,6 +4101,7 @@ string playing
 string position
 string preference_copied
 string save
+string screen_mirroring
 string search_menu_title
 string searchbar_scrolling_view_behavior
 string searchview_clear_text_content_description
@@ -4101,10 +4114,12 @@ string settings
 string settings_saved
 string side_sheet_accessibility_pane_title
 string side_sheet_behavior
+string start_mirroring
 string start_time
 string status
 string status_bar_notification_info_overflow
 string stop
+string stop_mirroring
 string stopped
 string stream_type
 string summary_collapsed_preference_list

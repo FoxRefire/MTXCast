@@ -24,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -177,9 +178,9 @@ class MainActivity : AppCompatActivity() {
         binding.seekBarVolume.progress = volumePercent
         binding.textVolume.text = getString(R.string.volume) + ": ${volumePercent}%"
 
-        if (status.position != null && status.duration != null && status.duration!! > 0) {
-            val position = status.position!!
-            val duration = status.duration!!
+        if (status.position != null && status.duration != null && status.duration > 0) {
+            val position = status.position
+            val duration = status.duration
             
             // Update position text
             binding.textPosition.text = getString(R.string.position) + ": ${formatTime(position.toInt())} / ${formatTime(duration.toInt())}"
@@ -359,14 +360,12 @@ class MainActivity : AppCompatActivity() {
                 inputStream?.close()
 
                 if (fileBytes != null) {
-                    val requestFile = okhttp3.RequestBody.create(
-                        "application/octet-stream".toMediaType(),
-                        fileBytes
+                    val requestFile = fileBytes.toRequestBody(
+                        "application/octet-stream".toMediaType()
                     )
                     val body = okhttp3.MultipartBody.Part.createFormData("file", fileName, requestFile)
-                    val startTime = okhttp3.RequestBody.create(
-                        "text/plain".toMediaType(),
-                        "0.0"
+                    val startTime = "0.0".toRequestBody(
+                        "text/plain".toMediaType()
                     )
 
                     val api = ApiClient.getApi(serverUrl)

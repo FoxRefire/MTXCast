@@ -645,6 +645,19 @@
       externalAnnotations="annotations.zip"
       proguardRules="proguard.txt"/>
   <library
+      name="io.github.webrtc-sdk:android:137.7151.04@aar"
+      jars="/home/user/.gradle/caches/transforms-3/04172b0c60521e934c5d163e0f064d35/transformed/jetified-android-137.7151.04/jars/classes.jar"
+      resolved="io.github.webrtc-sdk:android:137.7151.04"
+      folder="/home/user/.gradle/caches/transforms-3/04172b0c60521e934c5d163e0f064d35/transformed/jetified-android-137.7151.04"
+      manifest="AndroidManifest.xml"
+      resFolder="res"
+      assetsFolder="assets"
+      lintJar="lint.jar"
+      publicResources="public.txt"
+      symbolFile="R.txt"
+      externalAnnotations="annotations.zip"
+      proguardRules="proguard.txt"/>
+  <library
       name="org.jetbrains:annotations:23.0.0@jar"
       jars="/home/user/.gradle/caches/modules-2/files-2.1/org.jetbrains/annotations/23.0.0/8cc20c07506ec18e0834947b84a864bfc094484e/annotations-23.0.0.jar"
       resolved="org.jetbrains:annotations:23.0.0"/>
