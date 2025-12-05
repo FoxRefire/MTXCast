@@ -10,6 +10,7 @@ from aiortc import RTCPeerConnection
 from aiortc.mediastreams import MediaStreamTrack
 
 from .metadata import MetadataPayload, MetadataResolver
+from .sleep_inhibitor import SleepInhibitor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ class StreamManager:
         self._resolver = resolver
         self._status = PlayerStatus()
         self._lock = asyncio.Lock()
+        self._sleep_inhibitor = SleepInhibitor()
 
     @property
     def status(self) -> PlayerStatus:
@@ -91,6 +93,10 @@ class StreamManager:
                 )
             else:
                 await self._player.play_url(resolved.playback_url, resolved.start_time, resolved.title)
+            
+            # Start sleep inhibition when casting begins
+            self._sleep_inhibitor.start()
+            
             self._status = PlayerStatus(
                 stream_type=StreamType.METADATA,
                 title=resolved.title,
@@ -107,6 +113,10 @@ class StreamManager:
             LOGGER.info("Attaching WHIP track to player")
             await self._player.attach_webrtc_track(track, pc)
             LOGGER.info("WHIP track attached successfully")
+            
+            # Start sleep inhibition when casting begins
+            self._sleep_inhibitor.start()
+            
             self._status = PlayerStatus(
                 stream_type=StreamType.WHIP,
                 title=title or "Live WHIP Stream",
@@ -156,6 +166,9 @@ class StreamManager:
             LOGGER.error("Error in play_url: %s", e, exc_info=True)
             raise
         
+        # Start sleep inhibition when casting begins
+        self._sleep_inhibitor.start()
+        
         self._status = PlayerStatus(
             stream_type=StreamType.METADATA,
             title=title,
@@ -201,6 +214,10 @@ class StreamManager:
     async def stop(self) -> PlayerStatus:
         async with self._lock:
             await self._player.stop()
+            
+            # Stop sleep inhibition when casting ends
+            self._sleep_inhibitor.stop()
+            
             volume = self._status.volume
             self._status = PlayerStatus(
                 stream_type=StreamType.IDLE,
